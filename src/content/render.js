@@ -1,0 +1,180 @@
+/**
+ * Отрисовка двух строк субтитров поверх плеера.
+ *
+ * Каждая дорожка живёт сама по себе: на каждом кадре ищем активную реплику
+ * отдельно для верхней и нижней строки. Так одинаково работают и две родные
+ * дорожки с разным таймингом, и машинный перевод, склеенный по предложениям.
+ */
+(() => {
+  const DS = (window.DS = window.DS || {});
+
+  DS.Renderer = class Renderer {
+    constructor() {
+      this.player = null;
+      this.video = null;
+      this.root = null;
+      this.lines = { primary: null, secondary: null };
+      this.cues = { primary: [], secondary: [] };
+      this.hint = { primary: 0, secondary: 0 };
+      this.shown = { primary: null, secondary: null };
+      this.settings = { ...DS.DEFAULTS };
+      this.rafId = null;
+      this.pausedByHover = false;
+      this.resizeObserver = null;
+    }
+
+    attach(player, video) {
+      if (this.root && this.player === player) {
+        // Плеер тот же, но при SPA-переходе YouTube может подменить <video>.
+        this.video = video;
+        return;
+      }
+      this.detach();
+      this.player = player;
+      this.video = video;
+
+      const root = document.createElement('div');
+      root.className = 'ds-overlay';
+      root.dataset.dsOverlay = '1';
+
+      const mk = (role) => {
+        const line = document.createElement('div');
+        line.className = `ds-line ds-line--${role}`;
+        const span = document.createElement('span');
+        span.className = 'ds-text';
+        line.appendChild(span);
+        root.appendChild(line);
+        return line;
+      };
+      // Порядок в DOM меняем через CSS order, чтобы не пересобирать узлы.
+      this.lines.primary = mk('primary');
+      this.lines.secondary = mk('secondary');
+
+      root.addEventListener('mouseenter', this.onEnter);
+      root.addEventListener('mouseleave', this.onLeave);
+      root.addEventListener('click', this.onClick);
+
+      player.appendChild(root);
+      this.root = root;
+
+      this.resizeObserver = new ResizeObserver(() => this.applyScale());
+      this.resizeObserver.observe(player);
+
+      this.applySettings(this.settings);
+      this.start();
+    }
+
+    detach() {
+      this.stop();
+      this.resizeObserver?.disconnect();
+      this.resizeObserver = null;
+      if (this.root) {
+        this.root.removeEventListener('mouseenter', this.onEnter);
+        this.root.removeEventListener('mouseleave', this.onLeave);
+        this.root.removeEventListener('click', this.onClick);
+        this.root.remove();
+      }
+      this.root = null;
+      this.player = null;
+      this.video = null;
+      this.shown = { primary: null, secondary: null };
+    }
+
+    onEnter = () => {
+      if (!this.settings.pauseOnHover || !this.video) return;
+      if (!this.video.paused) { this.video.pause(); this.pausedByHover = true; }
+    };
+
+    onLeave = () => {
+      if (this.pausedByHover && this.video) { this.video.play().catch(() => {}); }
+      this.pausedByHover = false;
+    };
+
+    // Клик по субтитрам должен работать как клик по видео — но не мешать
+    // выделять текст мышью.
+    onClick = () => {
+      if (String(window.getSelection() || '').length) return;
+      if (!this.video) return;
+      if (this.video.paused) this.video.play().catch(() => {}); else this.video.pause();
+    };
+
+    setCues(role, cues) {
+      this.cues[role] = cues || [];
+      this.hint[role] = 0;
+      this.shown[role] = null;
+      this.tick(true);
+    }
+
+    clear() {
+      this.cues = { primary: [], secondary: [] };
+      this.shown = { primary: null, secondary: null };
+      for (const role of ['primary', 'secondary']) {
+        if (this.lines[role]) {
+          this.lines[role].firstChild.textContent = '';
+          this.lines[role].classList.remove('ds-line--visible');
+        }
+      }
+    }
+
+    applyScale() {
+      if (!this.root || !this.player) return;
+      const h = this.player.clientHeight || 360;
+      const base = Math.max(13, Math.min(46, h * 0.033));
+      this.root.style.setProperty('--ds-base', `${base * (this.settings.fontSize / 100)}px`);
+    }
+
+    applySettings(s) {
+      this.settings = s;
+      if (!this.root) return;
+      const st = this.root.style;
+      st.setProperty('--ds-gap', `${s.lineGap}px`);
+      st.setProperty('--ds-bottom', `${s.bottomOffset}%`);
+      st.setProperty('--ds-bg', `rgba(8, 8, 8, ${s.background / 100})`);
+      st.setProperty('--ds-primary-color', s.primaryColor);
+      st.setProperty('--ds-secondary-color', s.secondaryColor);
+      this.lines.primary.style.order = s.swapOrder ? '2' : '1';
+      this.lines.secondary.style.order = s.swapOrder ? '1' : '2';
+      this.root.classList.toggle('ds-overlay--interactive', !!s.pauseOnHover);
+      this.applyScale();
+    }
+
+    start() {
+      if (this.rafId != null) return;
+      const loop = () => { this.tick(); this.rafId = requestAnimationFrame(loop); };
+      this.rafId = requestAnimationFrame(loop);
+    }
+
+    stop() {
+      if (this.rafId != null) cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+
+    tick(force = false) {
+      if (!this.root || !this.video) return;
+
+      // Во время рекламы currentTime относится к ролику рекламы — прячемся.
+      const isAd = this.player.classList.contains('ad-showing') ||
+                   this.player.classList.contains('ad-interrupting');
+      if (isAd) {
+        if (!this.root.classList.contains('ds-overlay--hidden')) {
+          this.root.classList.add('ds-overlay--hidden');
+        }
+        return;
+      }
+      this.root.classList.remove('ds-overlay--hidden');
+
+      const t = this.video.currentTime * 1000;
+      for (const role of ['primary', 'secondary']) {
+        const cues = this.cues[role];
+        const idx = DS.findActive(cues, t, this.hint[role]);
+        const text = idx >= 0 ? cues[idx].text : '';
+        if (!force && text === this.shown[role]) continue;
+        this.hint[role] = idx >= 0 ? idx : this.hint[role];
+        this.shown[role] = text;
+        const line = this.lines[role];
+        line.firstChild.textContent = text;
+        line.classList.toggle('ds-line--visible', !!text);
+      }
+    }
+  };
+})();

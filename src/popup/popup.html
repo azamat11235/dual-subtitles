@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>Двойные субтитры</title>
+</head>
+<body>
+  <header class="head">
+    <h1>Двойные субтитры</h1>
+    <label class="ds-switch head__toggle">
+      <input type="checkbox" id="enabled">
+      <span>Вкл</span>
+    </label>
+  </header>
+
+  <p class="hint" id="hint">
+    Настройки по умолчанию. На странице видео их можно менять кнопкой
+    <b>двойных субтитров</b> в панели плеера.
+  </p>
+
+  <div id="form"></div>
+
+  <footer class="foot">
+    <button type="button" id="clearCache" class="linklike">Очистить кэш переводов</button>
+    <span id="cacheInfo" class="muted"></span>
+  </footer>
+
+  <script src="../content/util.js"></script>
+  <script src="../common/settings-form.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

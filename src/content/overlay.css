@@ -1,0 +1,222 @@
+/* ───────────────────────────── Оверлей субтитров ───────────────────────────── */
+
+.ds-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--ds-bottom, 8%);
+  z-index: 25;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-gap, 4px);
+
+  pointer-events: none;
+  text-align: center;
+  transition: bottom 0.18s ease-out;
+}
+
+/* Когда панель управления видна, поднимаем субтитры над ней —
+   так же, как это делает сам YouTube. */
+.html5-video-player:not(.ytp-autohide) .ds-overlay {
+  bottom: calc(var(--ds-bottom, 8%) + 52px);
+}
+
+.ds-overlay--hidden { display: none; }
+
+.ds-line {
+  display: none;
+  max-width: 88%;
+}
+
+.ds-line--visible { display: block; }
+
+.ds-text {
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+
+  padding: 0.1em 0.38em;
+  border-radius: 3px;
+  background: var(--ds-bg, rgba(8, 8, 8, 0.55));
+
+  font-family: "YouTube Noto", Roboto, "Arial Unicode Ms", Arial, Helvetica, sans-serif;
+  font-size: var(--ds-base, 24px);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.85);
+
+  /* Текст должен выделяться мышью — это половина смысла двойных субтитров. */
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.ds-line--primary .ds-text { color: var(--ds-primary-color, #fff); }
+
+.ds-line--secondary .ds-text {
+  color: var(--ds-secondary-color, #7fd1ff);
+  font-size: calc(var(--ds-base, 24px) * 0.88);
+  font-weight: 400;
+}
+
+/* Прячем родные субтитры YouTube, когда рисуем свои. */
+.ds-hide-native .ytp-caption-window-container { display: none !important; }
+
+/* ─────────────────────────── Кнопка в панели плеера ────────────────────────── */
+
+.ds-btn { position: relative; }
+
+.ds-btn svg { width: 100%; height: 100%; }
+
+.ds-btn .ds-btn-underline {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 18px;
+  height: 3px;
+  margin-left: -9px;
+  border-radius: 2px;
+  background: #ff0000;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.ds-btn--active .ds-btn-underline { opacity: 1; }
+
+.ds-btn--busy svg { animation: ds-pulse 1.1s ease-in-out infinite; }
+
+@keyframes ds-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ──────────────────────────── Панель настроек ──────────────────────────────── */
+
+.ds-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 60px;
+  z-index: 60;
+
+  width: 330px;
+  max-height: min(560px, calc(100% - 90px));
+  overflow-y: auto;
+  padding: 14px;
+  box-sizing: border-box;
+
+  background: rgba(28, 28, 28, 0.96);
+  border-radius: 12px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+
+  color: #eee;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+
+  cursor: default;
+}
+
+.ds-panel[hidden] { display: none; }
+
+.ds-panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ds-panel__close {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ds-panel__close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 9px 0;
+}
+
+.ds-row > label { flex: 0 0 auto; color: #bbb; }
+
+.ds-row select,
+.ds-row input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 205px;
+  padding: 5px 7px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #111;
+  color: #eee;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.ds-row select:focus { outline: 1px solid #3ea6ff; }
+
+.ds-row input[type="range"] { flex: 1 1 auto; max-width: 150px; accent-color: #3ea6ff; }
+
+.ds-row input[type="color"] {
+  width: 34px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.ds-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-switch input { accent-color: #3ea6ff; cursor: pointer; }
+
+.ds-panel__section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #383838;
+  color: #888;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ds-status {
+  margin-top: 10px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ds-status--error { background: rgba(255, 80, 80, 0.14); color: #ffb4b4; }
+.ds-status--work { background: rgba(62, 166, 255, 0.14); color: #a8d8ff; }
+
+.ds-range-value {
+  flex: 0 0 42px;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

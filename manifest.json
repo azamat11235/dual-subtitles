@@ -1,0 +1,86 @@
+{
+  "manifest_version": 3,
+  "name": "Dual Subtitles for YouTube",
+  "version": "1.0.0",
+  "description": "Двойные субтитры на YouTube: два языка одновременно. Если нужной дорожки нет — переводит автоматически и бесплатно.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://translate.googleapis.com/*",
+    "https://api.mymemory.translated.net/*",
+    "https://api-free.deepl.com/*",
+    "https://api.deepl.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/page/inject.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/util.js",
+        "src/common/settings-form.js",
+        "src/content/parse.js",
+        "src/content/tracks.js",
+        "src/content/render.js",
+        "src/content/ui.js",
+        "src/content/main.js"
+      ],
+      "css": [
+        "src/content/overlay.css"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/page/inject.js"
+      ],
+      "matches": [
+        "https://www.youtube.com/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Двойные субтитры",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "toggle-dual-subs": {
+      "suggested_key": {
+        "default": "Alt+D"
+      },
+      "description": "Включить / выключить двойные субтитры"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

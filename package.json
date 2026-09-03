@@ -1,0 +1,10 @@
+{
+  "name": "dual-subtitles",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Расширение Chrome: двойные субтитры на YouTube",
+  "type": "module",
+  "scripts": {
+    "test": "node test/run.mjs"
+  }
+}
