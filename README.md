@@ -188,7 +188,7 @@ The panel opens from the button in the player (that is also where the current
 video's track list is visible); the extension popup sets the defaults.
 
 * languages of the first and second line, translator, DeepL key;
-* size, offset from the bottom, backdrop opacity, colours;
+* size, backdrop opacity, colours;
 * pause when the mouse is over the subtitles (handy when learning a language).
 
 The first line stays on top, one cue at a time, and YouTube's own subtitles are
@@ -206,10 +206,9 @@ plain press used to do still works: a single click pauses or resumes the video,
 a double click selects a word and a triple click the whole line, so looking up
 an unfamiliar word is still one gesture away.
 
-Dragging and the *offset from the bottom* slider steer the same thing, so moving
-the slider drops a hand-picked position — otherwise the slider would look
-broken. A **Put back** button appears in the panel once the subtitles have been
-moved.
+A **Put back** button appears in the panel once the subtitles have been moved;
+it returns them to where YouTube rests its own, 2% above the bottom of the
+player.
 
 ## Tests
 

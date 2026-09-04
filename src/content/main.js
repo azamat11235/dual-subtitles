@@ -72,8 +72,6 @@
         secondary = { source: 'native', track: nativeSecond, lang: nativeSecond.languageCode };
       } else if (sameAsPrimary) {
         secondary = { source: 'none', reason: 'the video is already in this language' };
-      } else if (!settings.allowTranslation) {
-        secondary = { source: 'none', reason: `no ${DS.languageName(wanted)} subtitles` };
       } else if (!primaryTrack) {
         secondary = { source: 'none', reason: 'nothing to translate — this video has no subtitles' };
       } else {
@@ -370,19 +368,12 @@
   // ---------------------------- reacting to settings --------------------------
 
   const APPEARANCE_KEYS = new Set([
-    'fontSize', 'lineGap', 'bottomOffset', 'background',
+    'fontSize', 'lineGap', 'background',
     'primaryColor', 'secondaryColor', 'pauseOnHover',
     'captionX', 'captionY'
   ]);
 
   DS.onSettingsChange((settings, patch) => {
-    // The offset slider and dragging control the same thing. Touching the slider
-    // means going back to it, so a hand-picked position is dropped — otherwise
-    // the slider would look broken.
-    if ('bottomOffset' in patch && settings.captionY != null) {
-      DS.setSettings({ captionX: null, captionY: null });
-    }
-
     const keys = Object.keys(patch);
     const onlyAppearance = keys.length > 0 && keys.every((k) => APPEARANCE_KEYS.has(k));
     if (onlyAppearance) {

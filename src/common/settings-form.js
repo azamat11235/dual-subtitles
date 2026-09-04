@@ -5,6 +5,11 @@
  *
  * The only difference between them is where the language list comes from, so it
  * is passed in from outside through getLangOptions().
+ *
+ * A choice is made the way the player makes one: the row shows the current value
+ * and opens a submenu listing the alternatives with a tick beside the current
+ * one. A native <select> would drop a browser menu over the video, which looks
+ * nothing like the rest of the player.
  */
 (() => {
   const DS = (window.DS = window.DS || {});
@@ -26,25 +31,24 @@
     { section: 'Languages' },
     { key: 'primaryLang', label: 'First', type: 'lang', role: 'primary' },
     { key: 'secondaryLang', label: 'Second', type: 'lang', role: 'secondary' },
-    { key: 'allowTranslation', label: 'Translate if no track exists', type: 'bool' },
-    { key: 'translator', label: 'Translator', type: 'select', options: TRANSLATORS,
-      when: (s) => s.allowTranslation },
+    { key: 'translator', label: 'Translator', type: 'select', options: TRANSLATORS },
     { key: 'deeplKey', label: 'DeepL key', type: 'text', placeholder: 'xxxx-xxxx-...:fx',
-      when: (s) => s.allowTranslation && s.translator === 'deepl' },
+      when: (s) => s.translator === 'deepl' },
 
     { section: 'Appearance' },
     { key: 'fontSize', label: 'Size', type: 'range', min: 60, max: 200, step: 5, suffix: '%' },
-    { key: 'bottomOffset', label: 'Offset from bottom', type: 'range', min: 0, max: 40, step: 1, suffix: '%' },
-    { key: 'resetPosition', label: 'Subtitles were dragged', type: 'button', buttonLabel: 'Put back',
-      when: (s) => s.captionX != null || s.captionY != null,
-      action: () => DS.setSettings({ captionX: null, captionY: null }) },
     { key: 'background', label: 'Backdrop', type: 'range', min: 0, max: 100, step: 5, suffix: '%' },
     { key: 'primaryColor', label: 'First language colour', type: 'color' },
     { key: 'secondaryColor', label: 'Second language colour', type: 'color' },
+    { key: 'resetPosition', label: 'Subtitles were dragged', type: 'button', buttonLabel: 'Put back',
+      when: (s) => s.captionX != null || s.captionY != null,
+      action: () => DS.setSettings({ captionX: null, captionY: null }) },
 
     { section: 'Behaviour' },
     { key: 'pauseOnHover', label: 'Pause when hovering the subtitles', type: 'bool' }
   ];
+
+  const isMenu = (item) => item.type === 'lang' || item.type === 'select';
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -53,34 +57,8 @@
     return n;
   }
 
-  function fillSelect(select, options, value) {
-    select.textContent = '';
-    const addOption = (parent, o) => {
-      const opt = document.createElement('option');
-      opt.value = o.value;
-      opt.textContent = o.label;
-      parent.appendChild(opt);
-    };
-    for (const o of options) {
-      if (o.group) {
-        const g = document.createElement('optgroup');
-        g.label = o.group;
-        o.options.forEach((x) => addOption(g, x));
-        select.appendChild(g);
-      } else {
-        addOption(select, o);
-      }
-    }
-    // If the saved language is not among the tracks, still show the choice.
-    const flat = options.flatMap((o) => (o.group ? o.options : [o]));
-    if (value != null && !flat.some((o) => o.value === value)) {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = DS.languageName(value) + ' (not on this video)';
-      select.appendChild(opt);
-    }
-    select.value = value;
-  }
+  /** Flattens the option groups the caller may have used. */
+  const flatten = (options) => options.flatMap((o) => (o.group ? o.options : [o]));
 
   /**
    * @param {HTMLElement} root       where to render
@@ -91,16 +69,114 @@
     const rows = [];
     let settings = { ...DS.DEFAULTS };
 
+    const list = el('div', 'ds-form__list');
+    const submenu = el('div', 'ds-form__submenu');
+    submenu.hidden = true;
+    root.appendChild(list);
+    root.appendChild(submenu);
+
+    const optionsFor = (item) =>
+      (item.type === 'lang' ? opts.getLangOptions(item.role) : item.options);
+
+    /** What the row shows: the label of the chosen option, or the value itself. */
+    function currentLabel(item) {
+      const value = settings[item.key];
+      const hit = flatten(optionsFor(item)).find((o) => o.value === value);
+      if (hit) return hit.label;
+      // A language saved earlier that this video has no track for.
+      return item.type === 'lang' ? `${DS.languageName(value)} (not on this video)` : String(value ?? '');
+    }
+
+    function closeSubmenu() {
+      submenu.hidden = true;
+      submenu.textContent = '';
+      list.hidden = false;
+    }
+
+    function openSubmenu(entry) {
+      const { item } = entry;
+      const options = optionsFor(item);
+      const value = settings[item.key];
+      submenu.textContent = '';
+
+      const header = el('div', 'ds-submenu__header');
+      const back = el('button', 'ds-submenu__back');
+      back.type = 'button';
+      back.setAttribute('aria-label', 'Back');
+      back.addEventListener('click', closeSubmenu);
+      header.appendChild(back);
+      header.appendChild(el('span', 'ds-submenu__title', item.label));
+      submenu.appendChild(header);
+
+      const body = el('div', 'ds-submenu__list');
+      const choose = (v) => {
+        settings[item.key] = v;
+        entry.value.textContent = currentLabel(item);
+        DS.setSettings({ [item.key]: v });
+        applyVisibility();
+        closeSubmenu();
+      };
+      const addOption = (o) => {
+        const node = el('div', 'ds-option', o.label);
+        node.setAttribute('role', 'menuitemradio');
+        node.setAttribute('aria-checked', String(o.value === value));
+        node.tabIndex = 0;
+        node.addEventListener('click', () => choose(o.value));
+        node.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(o.value); }
+        });
+        body.appendChild(node);
+      };
+
+      for (const o of options) {
+        if (o.group) {
+          body.appendChild(el('div', 'ds-panel__section', o.group));
+          o.options.forEach(addOption);
+        } else {
+          addOption(o);
+        }
+      }
+      // Keep a saved choice reachable even when this video cannot offer it.
+      if (value != null && !flatten(options).some((o) => o.value === value)) {
+        addOption({ value, label: currentLabel(item) });
+      }
+
+      submenu.appendChild(body);
+      list.hidden = true;
+      submenu.hidden = false;
+      submenu.scrollTop = 0;
+      back.focus();
+    }
+
     for (const item of SCHEMA) {
       if (item.section) {
         const s = el('div', 'ds-panel__section', item.section);
-        root.appendChild(s);
+        list.appendChild(s);
         rows.push({ item, node: s });
         continue;
       }
 
       const row = el('div', 'ds-row');
       let input;
+      let value;
+
+      if (isMenu(item)) {
+        row.classList.add('ds-row--menu');
+        row.setAttribute('role', 'menuitem');
+        row.setAttribute('aria-haspopup', 'true');
+        row.tabIndex = 0;
+        row.appendChild(el('label', null, item.label));
+        value = el('span', 'ds-value');
+        row.appendChild(value);
+        const entry = { item, node: row, value };
+        row.addEventListener('click', () => openSubmenu(entry));
+        row.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSubmenu(entry); }
+        });
+        list.appendChild(row);
+        rows.push(entry);
+        continue;
+      }
 
       if (item.type === 'bool') {
         const lab = el('label', 'ds-switch');
@@ -119,9 +195,7 @@
         row.appendChild(input);
       } else {
         row.appendChild(el('label', null, item.label));
-        if (item.type === 'lang' || item.type === 'select') {
-          input = document.createElement('select');
-        } else if (item.type === 'range') {
+        if (item.type === 'range') {
           input = document.createElement('input');
           input.type = 'range';
           input.min = item.min;
@@ -146,13 +220,12 @@
       // A button carries no value: it fires its action and that is all.
       if (item.type !== 'button') {
         const commit = () => {
-          let value;
-          if (item.type === 'bool') value = input.checked;
-          else if (item.type === 'range') value = Number(input.value);
-          else value = input.value;
-          settings[item.key] = value;
-          if (input._output) input._output.textContent = value + (item.suffix || '');
-          DS.setSettings({ [item.key]: value });
+          const v = item.type === 'bool' ? input.checked
+            : item.type === 'range' ? Number(input.value)
+              : input.value;
+          settings[item.key] = v;
+          if (input._output) input._output.textContent = v + (item.suffix || '');
+          DS.setSettings({ [item.key]: v });
           applyVisibility();
         };
 
@@ -160,7 +233,7 @@
         input.addEventListener(item.type === 'range' || item.type === 'color' ? 'input' : 'change', commit);
       }
 
-      root.appendChild(row);
+      list.appendChild(row);
       rows.push({ item, node: row, input });
     }
 
@@ -172,30 +245,19 @@
 
     async function refresh() {
       settings = await DS.getSettings();
+      closeSubmenu();
       for (const r of rows) {
-        if (!r.input || r.item.type === 'button') continue;
-        const { item, input } = r;
+        const { item } = r;
+        if (isMenu(item)) { r.value.textContent = currentLabel(item); continue; }
+        if (!r.input || item.type === 'button') continue;
         const value = settings[item.key];
-        if (item.type === 'bool') input.checked = !!value;
-        else if (item.type === 'lang') fillSelect(input, opts.getLangOptions(item.role), value);
-        else if (item.type === 'select') fillSelect(input, item.options, value);
-        else input.value = value;
-        if (input._output) input._output.textContent = value + (item.suffix || '');
+        if (item.type === 'bool') r.input.checked = !!value;
+        else r.input.value = value;
+        if (r.input._output) r.input._output.textContent = value + (item.suffix || '');
       }
       applyVisibility();
     }
 
-    /**
-     * Re-reads the settings and updates only which rows are visible, leaving the
-     * field values alone. Needed when a setting changed from outside — the
-     * subtitles were dragged, say — while the form is open: rebuilding it in full
-     * would reset a dropdown right under the cursor.
-     */
-    async function syncVisibility() {
-      settings = await DS.getSettings();
-      applyVisibility();
-    }
-
-    return { refresh, syncVisibility };
+    return { refresh };
   };
 })();

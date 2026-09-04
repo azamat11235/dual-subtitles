@@ -20,26 +20,6 @@
   font-weight: 500;
 }
 
-.ds-panel__close {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.ds-panel__close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
-
-/* An author `display` rule outranks the browser's own [hidden] { display: none },
-   so without this the rows the schema hides -- the DeepL key while another
-   translator is chosen, "Put back" while nothing was dragged -- stayed on
-   screen. */
 .ds-row[hidden],
 .ds-panel__section[hidden] { display: none; }
 
@@ -66,30 +46,85 @@
   color: #eee;
 }
 
-/* Values sit on the right and read as text, not as form controls. */
-.ds-row select {
+/* A choice reads as the value it currently holds, and opens a submenu. */
+.ds-row--menu { cursor: pointer; }
+
+.ds-value {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 62%;
-  padding: 0 20px 0 0;
-  border: 0;
-  background: transparent;
+  padding-right: 20px;
   color: rgba(255, 255, 255, 0.7);
-  font: inherit;
-  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 
-  -webkit-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff' opacity='0.7'%3E%3Cpath d='M9.29 6.71 14.59 12l-5.3 5.29 1.42 1.42L17.41 12l-6.7-6.71z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='rgba(255,255,255,0.7)'%3E%3Cpath d='M9.29 6.71 14.59 12l-5.3 5.29 1.42 1.42L17.41 12l-6.7-6.71z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right center;
   background-size: 16px 16px;
 }
 
-.ds-row select:hover { color: #fff; }
-.ds-row select:focus { outline: 0; }
+.ds-row--menu:hover .ds-value { color: #fff; }
+.ds-row--menu:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); outline-offset: -1px; }
+
+/* ------------------------------- the submenu -------------------------------- */
+/* .ytp-panel-header and its list, measured: a 56px header over a 1px divider,
+   48px options, and a 35px gutter on the left for the tick. */
+
+.ds-submenu__header {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ds-submenu__back {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='%23fff'%3E%3Cpath d='m19.41 20.09-4.58-4.59 4.58-4.59L18 9.5l-6 6 6 6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 32px 32px;
+  cursor: pointer;
+}
+
+.ds-submenu__back:hover { background-color: rgba(255, 255, 255, 0.1); }
+
+.ds-submenu__title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #eee;
+}
+
+.ds-option {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 20px 0 35px;
+  font-size: 14px;
+  color: #eee;
+  cursor: pointer;
+
+  background-repeat: no-repeat;
+  background-position: 9px center;
+  background-size: 18px 18px;
+}
+
+.ds-option:hover { background-color: rgba(255, 255, 255, 0.1); }
+.ds-option:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); outline-offset: -1px; }
+.ds-option[aria-checked="true"] { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"); }
+
+/* While a submenu is open the surface shows only that, the way the player's
+   menu does -- title, master switch and status step aside. */
+.ds-panel:has(.ds-form__submenu:not([hidden])) > .ds-panel__title,
+.ds-panel:has(.ds-form__submenu:not([hidden])) > .ds-row,
+.ds-panel:has(.ds-form__submenu:not([hidden])) > .ds-status { display: none; }
 
 .ds-row input[type="text"] {
   flex: 0 1 auto;

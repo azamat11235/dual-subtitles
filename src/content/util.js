@@ -17,17 +17,15 @@
     primaryLang: 'auto',
     secondaryLang: 'ru',
     // Allow machine translation when there is no ready-made track
-    allowTranslation: true,
     // Translation provider. 'youtube' is YouTube's own built-in translation.
     translator: 'youtube',
     deeplKey: '',
     // Appearance
     fontSize: 100,        // % of the base size
     lineGap: 4,           // px between the lines
-    bottomOffset: 8,      // % of the player height
     // Where the block was dragged to, as fractions of the player size (X is the
     // centre of the block, Y its distance from the bottom). null means it was
-    // never dragged and bottomOffset plus centring decide the position.
+    // never dragged and the resting place near the bottom edge is used.
     captionX: null,
     captionY: null,
     background: 55,       // backdrop opacity, %

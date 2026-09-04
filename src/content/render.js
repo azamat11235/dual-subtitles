@@ -268,7 +268,6 @@
       if (!this.root) return;
       const st = this.root.style;
       st.setProperty('--ds-gap', `${s.lineGap}px`);
-      st.setProperty('--ds-bottom', `${s.bottomOffset}%`);
       st.setProperty('--ds-bg', `rgba(8, 8, 8, ${s.background / 100})`);
       st.setProperty('--ds-primary-color', s.primaryColor);
       st.setProperty('--ds-secondary-color', s.secondaryColor);
