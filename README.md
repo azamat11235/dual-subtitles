@@ -18,7 +18,7 @@ itself: free, no keys required.
 3. Click **Load unpacked** and pick the project folder.
 
 That is all: on any video page a two-line button appears in the player controls.
-The quick toggle is `Alt+D`.
+The quick toggle is `Alt+D` — `⌥D` on a Mac, where that key is Option.
 
 ## How the second language is chosen
 

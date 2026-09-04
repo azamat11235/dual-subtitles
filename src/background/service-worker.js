@@ -314,6 +314,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       chrome.storage.local.remove(keys).then(() => sendResponse({ ok: true, removed: keys.length })));
     return true;
   }
+  if (msg?.type === 'shortcut') {
+    // chrome.commands is unreachable from a content script, so it asks here.
+    chrome.commands.getAll().then((all) => sendResponse({
+      ok: true,
+      shortcut: all.find((c) => c.name === (msg.name || 'toggle-dual-subs'))?.shortcut || ''
+    }));
+    return true;
+  }
   if (msg?.type === 'cacheStats') {
     cacheKeys().then((keys) => sendResponse({ ok: true, entries: keys.length }));
     return true;
@@ -321,7 +329,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-/** Alt+D -- the quick toggle. */
+/** The quick toggle, Alt+D out of the box (⌥D on a Mac). */
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== 'toggle-dual-subs') return;
   const { enabled = true } = await chrome.storage.sync.get({ enabled: true });

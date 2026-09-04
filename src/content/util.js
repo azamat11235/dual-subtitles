@@ -79,6 +79,51 @@
     return code;
   };
 
+  /**
+   * The keyboard shortcut as this platform writes it.
+   *
+   * macOS has no Alt key: the same physical key is Option, written ⌥. Chrome
+   * hands the binding over in whatever spelling it likes, so anything already in
+   * symbols is passed through untouched and only the ASCII names are mapped.
+   */
+  const MAC = /mac/i.test(navigator.userAgentData?.platform || navigator.platform || '');
+  const KEY_SYMBOL = {
+    command: '⌘', cmd: '⌘', meta: '⌘',
+    ctrl: '⌃', control: '⌃', macctrl: '⌃',
+    alt: '⌥', option: '⌥', opt: '⌥',
+    shift: '⇧'
+  };
+
+  DS.shortcutLabel = (shortcut) => {
+    if (!shortcut) return '';
+    if (!MAC) return shortcut;
+    // On a Mac the parts are written side by side, without separators.
+    return shortcut.split('+').map((part) => {
+      const key = part.trim();
+      return KEY_SYMBOL[key.toLowerCase()] || key;
+    }).join('');
+  };
+
+  /**
+   * What the shortcut is actually bound to — it can be changed or cleared in the
+   * browser's own settings, and an empty string means it is unbound.
+   *
+   * chrome.commands is out of reach from a content script, so there the question
+   * goes to the background worker.
+   */
+  DS.getShortcut = async (name = 'toggle-dual-subs') => {
+    try {
+      if (chrome.commands?.getAll) {
+        const all = await chrome.commands.getAll();
+        return all.find((c) => c.name === name)?.shortcut || '';
+      }
+      const r = await chrome.runtime.sendMessage({ type: 'shortcut', name });
+      return r?.shortcut || '';
+    } catch {
+      return ''; // worker asleep or extension reloaded — show the label bare
+    }
+  };
+
   DS.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   DS.debounce = (fn, ms) => {

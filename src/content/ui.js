@@ -90,7 +90,14 @@
     const masterInput = document.createElement('input');
     masterInput.type = 'checkbox';
     master.appendChild(masterInput);
-    master.appendChild(document.createTextNode('Enabled (Alt+D)'));
+    const masterText = document.createTextNode('Enabled');
+    master.appendChild(masterText);
+    // The binding is asked for rather than assumed: it differs per platform and
+    // the user can change or clear it in the browser's settings.
+    DS.getShortcut().then((shortcut) => {
+      const label = DS.shortcutLabel(shortcut);
+      if (label) masterText.textContent = `Enabled (${label})`;
+    });
     masterInput.addEventListener('change', () => DS.setSettings({ enabled: masterInput.checked }));
     const masterRow = document.createElement('div');
     masterRow.className = 'ds-row';
