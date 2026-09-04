@@ -150,29 +150,42 @@
   /**
    * Takes the box of a neighbouring control instead of assuming one.
    *
-   * The classic control bar sizes its buttons through `.ytp-button`, which our
-   * button carries; the rounded bar does not, and there the button came out
-   * oversized and off the baseline. Measuring the neighbour works on both, and
-   * on whatever YouTube ships next.
+   * Wearing `.ytp-button` used to do this, and it backfired: on the current
+   * player that class also picks up `svg { padding: 12px }`, which pushed our
+   * glyph to 72x56 inside a 48x40 button until `overflow: hidden` cropped it,
+   * and in a narrow window it picks up `display: none` on everything in the
+   * right-hand controls that YouTube does not whitelist by name -- the button
+   * disappeared outright. So the class is gone and the box is measured instead,
+   * which works on every layout, including whatever ships next.
    */
-  function applyNeighbourSize(neighbour) {
+  function applyNeighbourBox(neighbour) {
     if (!button || !neighbour) return;
     const box = neighbour.getBoundingClientRect();
     if (!box.width || !box.height) return; // bar hidden — the observer will call back
-    button.style.width = `${box.width}px`;
-    button.style.height = `${box.height}px`;
+
+    const theirs = getComputedStyle(neighbour);
+    for (const prop of ['width', 'height', 'margin', 'padding']) button.style[prop] = theirs[prop];
+
+    // The glyph too: this player insets its icons with padding on the svg, and
+    // a size that ignored that would overflow the button and get clipped.
+    const theirIcon = neighbour.querySelector('svg');
+    const ourIcon = button.querySelector('svg');
+    if (theirIcon && ourIcon) {
+      const icon = getComputedStyle(theirIcon);
+      for (const prop of ['width', 'height', 'padding', 'boxSizing']) ourIcon.style[prop] = icon[prop];
+    }
   }
 
   function matchNeighbourSize(neighbour) {
     sizeObserver?.disconnect();
     sizeObserver = null;
     if (!neighbour) return;
-    applyNeighbourSize(neighbour);
+    applyNeighbourBox(neighbour);
     // Fullscreen and window resizes change the neighbour's box without ever
     // removing our button, so nothing else would re-run the measurement. Only
     // the measuring half is subscribed: re-subscribing from the callback would
     // loop, since observing fires an initial notification of its own.
-    sizeObserver = new ResizeObserver(() => applyNeighbourSize(neighbour));
+    sizeObserver = new ResizeObserver(() => applyNeighbourBox(neighbour));
     sizeObserver.observe(neighbour);
   }
 
@@ -182,7 +195,7 @@
     if (button && controls.contains(button)) return;
 
     button = document.createElement('button');
-    button.className = 'ytp-button ds-btn';
+    button.className = 'ds-btn';
     button.type = 'button';
     button.title = 'Dual subtitles';
     button.setAttribute('aria-label', 'Dual subtitles');

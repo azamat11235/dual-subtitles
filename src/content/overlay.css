@@ -67,9 +67,10 @@
 
 /* ─────────────────────────── Button in the player bar ──────────────────────── */
 
-/* The box comes from a neighbouring control, measured in ui.js — the rounded
-   control bar does not size buttons through .ytp-button. Centre the glyph
-   inside whatever box that turns out to be. */
+/* The button no longer carries .ytp-button: that class drags in layout rules
+   that break it on the current player (an svg padding that overflows the box,
+   and display:none in a narrow window). So it brings its own reset, and ui.js
+   copies the box of a neighbouring control onto it. */
 .ds-btn {
   position: relative;
   box-sizing: border-box;
@@ -77,10 +78,21 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  vertical-align: middle;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.1s;
 }
 
-.ds-btn svg { width: 100%; height: 100%; }
+.ds-btn:hover { opacity: 1; }
+
+.ds-btn:focus { outline: 0; }
+
+/* Fallback for a control bar with no neighbour to measure. */
+.ds-btn svg { width: 100%; height: 100%; box-sizing: border-box; }
 
 .ds-btn .ds-btn-underline {
   position: absolute;
