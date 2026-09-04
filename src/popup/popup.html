@@ -2,17 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <link rel="stylesheet" href="../common/panel.css">
   <link rel="stylesheet" href="popup.css">
   <title>Dual subtitles</title>
 </head>
 <body>
-  <header class="head">
-    <h1>Dual subtitles</h1>
-    <label class="ds-switch head__toggle">
+  <div class="ds-panel__title">Dual subtitles</div>
+
+  <div class="ds-row">
+    <label class="ds-switch">
       <input type="checkbox" id="enabled">
-      <span>On</span>
+      <span id="enabledLabel">Enabled</span>
     </label>
-  </header>
+  </div>
 
   <p class="hint" id="hint">
     These are the defaults. On a video page you can change them with the

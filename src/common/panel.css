@@ -1,0 +1,123 @@
+/* ──────────────────────── Settings form, shared ─────────────────────────────── */
+/* The same form is drawn in two places — the panel inside the player and the
+   extension popup — by one piece of code, so it is dressed by one stylesheet.
+   Only where the form sits differs: that stays in overlay.css and popup.css. */
+
+.ds-panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ds-panel__close {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ds-panel__close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+/* An author `display` rule outranks the browser's own [hidden] { display: none },
+   so without this the rows the schema hides -- the DeepL key while another
+   translator is chosen, "Put back" while nothing was dragged -- stayed on
+   screen. */
+.ds-row[hidden],
+.ds-panel__section[hidden] { display: none; }
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 9px 0;
+}
+
+.ds-row > label { flex: 0 0 auto; color: #bbb; }
+
+.ds-row select,
+.ds-row input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 205px;
+  padding: 5px 7px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #111;
+  color: #eee;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.ds-row select:focus { outline: 1px solid #3ea6ff; }
+
+.ds-row input[type="range"] { flex: 1 1 auto; max-width: 150px; accent-color: #3ea6ff; }
+
+.ds-row input[type="color"] {
+  width: 34px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.ds-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-switch input { accent-color: #3ea6ff; cursor: pointer; }
+
+.ds-panel__section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #383838;
+  color: #888;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ds-status {
+  margin-top: 10px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ds-status--error { background: rgba(255, 80, 80, 0.14); color: #ffb4b4; }
+.ds-status--work { background: rgba(62, 166, 255, 0.14); color: #a8d8ff; }
+
+.ds-range-value {
+  flex: 0 0 42px;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ds-btn-secondary {
+  padding: 4px 10px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #eee;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ds-btn-secondary:hover { background: #3a3a3a; border-color: #777; }

@@ -46,7 +46,8 @@
         "src/content/main.js"
       ],
       "css": [
-        "src/content/overlay.css"
+        "src/content/overlay.css",
+        "src/common/panel.css"
       ],
       "run_at": "document_start",
       "all_frames": false

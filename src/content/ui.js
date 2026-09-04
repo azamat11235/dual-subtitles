@@ -8,11 +8,15 @@
 (() => {
   const DS = (window.DS = window.DS || {});
 
+  // The drawing fills the box to about the same width as the controls beside it.
+  // Measured against the settings button on the current player: its glyph is
+  // 15.3px wide inside an 18px box, and this one is 15px. The earlier artwork
+  // was 13x8 against its 15.3x16.5, which is what made the button look shrunken.
   const ICON = `
     <svg viewBox="0 0 36 36" height="100%" width="100%" fill="none">
-      <path fill="currentColor" d="M8 10h20a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Zm0 2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V13a1 1 0 0 0-1-1H8Z"/>
-      <rect x="9.5" y="15" width="17" height="2.3" rx="1.15" fill="currentColor"/>
-      <rect x="9.5" y="19.4" width="11" height="2.3" rx="1.15" fill="#7fd1ff"/>
+      <path fill="currentColor" d="M7 8h22a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Zm0 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h22a2 2 0 0 0 2-2V12a2 2 0 0 0-2-2H7Z"/>
+      <rect x="7.5" y="13.5" width="18" height="2.6" rx="1.3" fill="currentColor"/>
+      <rect x="7.5" y="19" width="11.5" height="2.6" rx="1.3" fill="#7fd1ff"/>
     </svg>`;
 
   let button = null;
@@ -123,11 +127,26 @@
     return p;
   }
 
+  /**
+   * Closes YouTube's own settings menu, so that two panels never sit on top of
+   * each other.
+   *
+   * Judged by what is on screen rather than by the button's aria-expanded: that
+   * attribute is updated a moment late, so a check made right after the menu
+   * opens still reads "false" and the menu would be left standing.
+   */
+  function closePlayerMenu() {
+    const menu = document.querySelector('.ytp-popup.ytp-settings-menu');
+    if (!menu || getComputedStyle(menu).display === 'none') return;
+    document.querySelector('.ytp-settings-button')?.click();
+  }
+
   function togglePanel(show) {
     if (!panel) return;
     const next = show ?? panel.hidden;
     panel.hidden = !next;
     if (next) {
+      closePlayerMenu();
       form?.refresh();
       DS.getSettings().then((s) => { panel._masterInput.checked = s.enabled; });
       renderStatus();

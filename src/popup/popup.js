@@ -8,6 +8,12 @@
   enabled.addEventListener('change', () => DS.setSettings({ enabled: enabled.checked }));
   DS.onSettingsChange((s) => { enabled.checked = s.enabled; });
 
+  // Same label as the panel inside the player, down to the actual binding.
+  DS.getShortcut().then((shortcut) => {
+    const label = DS.shortcutLabel(shortcut);
+    if (label) document.getElementById('enabledLabel').textContent = `Enabled (${label})`;
+  });
+
   // The popup has no access to a particular video's track list -- show the
   // common set of languages instead.
   const langOptions = (role) => {
