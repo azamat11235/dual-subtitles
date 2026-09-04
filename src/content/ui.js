@@ -148,17 +148,34 @@
    * class it hides by is taken back off whenever it reappears.
    */
   let autohideGuard = null;
+  let autohidePlayer = null;
   function holdControls(on) {
     autohideGuard?.disconnect();
     autohideGuard = null;
+    autohidePlayer?.classList.remove('ds-holding-controls', 'ytp-settings-shown');
+    autohidePlayer = null;
     if (!on) return;
 
     const player = document.querySelector('#movie_player, .html5-video-player');
     if (!player) return;
-    const unhide = () => player.classList.remove('ytp-autohide');
-    unhide();
-    autohideGuard = new MutationObserver(unhide);
-    autohideGuard.observe(player, { attributes: true, attributeFilter: ['class'] });
+    autohidePlayer = player;
+
+    // The flag the player raises for its own menus, plus our own marker.
+    player.classList.add('ds-holding-controls', 'ytp-settings-shown');
+    player.classList.remove('ytp-autohide');
+
+    const watch = () => autohideGuard.observe(player, { attributes: true, attributeFilter: ['class'] });
+    autohideGuard = new MutationObserver(() => {
+      // Only when the class is really there. Reacting to every class change and
+      // writing the attribute back unconditionally fed the observer its own
+      // mutations, and the page locked up between the two of us -- the player
+      // touches these classes constantly.
+      if (!player.classList.contains('ytp-autohide')) return;
+      autohideGuard.disconnect();
+      player.classList.remove('ytp-autohide');
+      watch();
+    });
+    watch();
   }
 
   function togglePanel(show) {

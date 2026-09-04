@@ -269,3 +269,11 @@
 }
 
 .ds-panel[hidden] { display: none; }
+
+/* While our panel is open the control bar stays up with it, the way the player
+   keeps its own menus company. The class above does the work; this is the
+   belt-and-braces for a layout that hides the bar by opacity alone. */
+.ds-holding-controls .ytp-chrome-bottom {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
