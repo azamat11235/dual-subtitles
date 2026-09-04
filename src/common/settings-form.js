@@ -115,10 +115,13 @@
      * sits in normal flow, so the panel is exactly as tall as its contents
      * without anyone having to measure it.
      */
-    let animation = null;
+    let settle = null;
     function swap(from, to, direction) {
       const back = direction === 'back';
-      if (animation) { clearTimeout(animation); animation = null; }
+      // A swap started mid-flight leaves the previous one half-applied -- an
+      // inline height on the surface and a transform on a view that is about to
+      // be reused. Finish it properly first rather than just dropping its timer.
+      settle?.();
 
       const startHeight = root.offsetHeight;
       to.hidden = false;
@@ -132,14 +135,16 @@
       to.style.transform = 'translateX(0)';
       from.style.transform = `translateX(${back ? '100%' : '-100%'})`;
 
-      animation = setTimeout(() => {
-        animation = null;
+      const timer = setTimeout(() => settle?.(), 260);
+      settle = () => {
+        clearTimeout(timer);
+        settle = null;
         root.classList.remove('ds-form--animating');
         root.style.height = '';
         from.hidden = true;
         from.style.transform = '';
         to.style.transform = '';
-      }, 260);
+      };
     }
 
     const optionsFor = (item) =>
@@ -155,6 +160,7 @@
     }
 
     function closeSubmenu({ animate = false } = {}) {
+      settle?.();
       if (submenu.hidden) return;
       if (!animate) {
         submenu.hidden = true;

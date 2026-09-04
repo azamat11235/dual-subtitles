@@ -246,9 +246,13 @@
 
 .ds-panel {
   position: absolute;
+
+  /* Where the player puts its own menu: 12px in from the right and 6px above
+     the control bar, whose height it keeps in a variable. Measured at 62px here
+     and 78px in big mode; a flat 60px only matched one of them. */
   right: 12px;
-  bottom: 60px;
-  z-index: 60;
+  bottom: calc(var(--yt-delhi-bottom-controls-height, 56px) + 6px);
+  z-index: 2300;
 
   width: 340px;
   max-height: min(560px, calc(100% - 90px));
@@ -266,6 +270,10 @@
   line-height: 1.4;
 
   cursor: default;
+}
+
+.ytp-big-mode .ds-panel {
+  bottom: calc(var(--yt-delhi-big-mode-bottom-controls-height, 72px) + 6px);
 }
 
 .ds-panel[hidden] { display: none; }

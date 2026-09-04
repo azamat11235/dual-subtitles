@@ -149,10 +149,13 @@
    */
   let autohideGuard = null;
   let autohidePlayer = null;
+  let raisedSettingsShown = false;
   function holdControls(on) {
     autohideGuard?.disconnect();
     autohideGuard = null;
-    autohidePlayer?.classList.remove('ds-holding-controls', 'ytp-settings-shown');
+    autohidePlayer?.classList.remove('ds-holding-controls');
+    if (raisedSettingsShown) autohidePlayer?.classList.remove('ytp-settings-shown');
+    raisedSettingsShown = false;
     autohidePlayer = null;
     if (!on) return;
 
@@ -160,8 +163,12 @@
     if (!player) return;
     autohidePlayer = player;
 
-    // The flag the player raises for its own menus, plus our own marker.
-    player.classList.add('ds-holding-controls', 'ytp-settings-shown');
+    // The flag the player raises for its own menus, plus our own marker. If it
+    // was already up, the player put it there for a menu of its own and it is
+    // not ours to take down again.
+    raisedSettingsShown = !player.classList.contains('ytp-settings-shown');
+    player.classList.add('ds-holding-controls');
+    if (raisedSettingsShown) player.classList.add('ytp-settings-shown');
     player.classList.remove('ytp-autohide');
 
     const watch = () => autohideGuard.observe(player, { attributes: true, attributeFilter: ['class'] });
