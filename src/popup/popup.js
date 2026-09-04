@@ -30,6 +30,12 @@
   };
 
   const form = DS.buildSettingsForm(document.getElementById('form'), { getLangOptions: langOptions });
+  // Everything rides inside the list view, so the whole popup slides away when a
+  // submenu opens, exactly as the in-player panel does.
+  const masterIcon = DS.rowIcon('enabled');
+  if (masterIcon) document.getElementById('enabledRow').prepend(masterIcon);
+  form.listView.prepend(...document.querySelectorAll('body > .ds-panel__title, body > .ds-row, body > .hint'));
+  form.listView.append(document.querySelector('body > .foot'));
   await form.refresh();
 
   function showCacheStats() {

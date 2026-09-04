@@ -45,8 +45,39 @@
       action: () => DS.setSettings({ captionX: null, captionY: null }) },
 
     { section: 'Behaviour' },
-    { key: 'pauseOnHover', label: 'Pause when hovering the subtitles', type: 'bool' }
+    { key: 'pauseOnHover', label: 'Pause on hover', type: 'bool' }
   ];
+
+
+  /**
+   * A glyph for every row, the way the player's menu carries one.
+   *
+   * 24x24 like its own, drawn from plain shapes rather than lifted: the column
+   * is what matters for the eye, not the artwork.
+   */
+  const ICONS = {
+    enabled: '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="5.5" y="9.5" width="13" height="1.8" rx=".9"/><rect x="5.5" y="13" width="8" height="1.8" rx=".9"/>',
+    primaryLang: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9h17M3.5 15h17" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+    secondaryLang: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9h17M3.5 15h17" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+    translator: '<rect x="2.5" y="3.5" width="12" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9.5" y="10.5" width="12" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 8.5h6M8.5 5.5v6" stroke="currentColor" stroke-width="1.6"/>',
+    deeplKey: '<circle cx="7.5" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11.5 12H21M18 12v3.5M15 12v2.5" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+    fontSize: '<path d="M2 19 7 5h2l5 14h-2l-1.2-3.5H5.2L4 19H2Zm3.8-5.3h3.4L7.5 8.6 5.8 13.7Z"/><path d="M14.5 19 18 9.5h1.6L23 19h-1.7l-.8-2.4h-3.5L16.2 19h-1.7Zm2.9-3.8h2.6l-1.3-3.8-1.3 3.8Z"/>',
+    background: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M20 8v10.5a2 2 0 0 1-2 2H8L20 8Z"/>',
+    primaryColor: '<circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="4.6"/>',
+    secondaryColor: '<circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="4.6"/>',
+    resetPosition: '<path d="M12 5a7 7 0 1 1-6.6 9.3l1.9-.6A5 5 0 1 0 12 7v2.5L7.8 6.2 12 3v2Z"/>',
+    pauseOnHover: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/>'
+  };
+
+  DS.rowIcon = function rowIcon(key) {
+    const shape = ICONS[key];
+    if (!shape) return null;
+    const holder = document.createElement('span');
+    holder.className = 'ds-icon';
+    holder.setAttribute('aria-hidden', 'true');
+    holder.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${shape}</svg>`;
+    return holder;
+  };
 
   const isMenu = (item) => item.type === 'lang' || item.type === 'select';
 
@@ -69,11 +100,47 @@
     const rows = [];
     let settings = { ...DS.DEFAULTS };
 
-    const list = el('div', 'ds-form__list');
-    const submenu = el('div', 'ds-form__submenu');
+    root.classList.add('ds-form');
+    const list = el('div', 'ds-view ds-view--list');
+    const submenu = el('div', 'ds-view ds-view--submenu');
     submenu.hidden = true;
     root.appendChild(list);
     root.appendChild(submenu);
+
+    /**
+     * Slides one view out while the other comes in, and takes the surface's
+     * height with it -- the way the player moves between its own panels.
+     *
+     * The views only become absolute for the duration: in rest the visible one
+     * sits in normal flow, so the panel is exactly as tall as its contents
+     * without anyone having to measure it.
+     */
+    let animation = null;
+    function swap(from, to, direction) {
+      const back = direction === 'back';
+      if (animation) { clearTimeout(animation); animation = null; }
+
+      const startHeight = root.offsetHeight;
+      to.hidden = false;
+      root.classList.add('ds-form--animating');
+      to.style.transform = `translateX(${back ? '-100%' : '100%'})`;
+      const endHeight = to.offsetHeight;
+
+      root.style.height = `${startHeight}px`;
+      void root.offsetHeight;               // let the start height take effect
+      root.style.height = `${endHeight}px`;
+      to.style.transform = 'translateX(0)';
+      from.style.transform = `translateX(${back ? '100%' : '-100%'})`;
+
+      animation = setTimeout(() => {
+        animation = null;
+        root.classList.remove('ds-form--animating');
+        root.style.height = '';
+        from.hidden = true;
+        from.style.transform = '';
+        to.style.transform = '';
+      }, 260);
+    }
 
     const optionsFor = (item) =>
       (item.type === 'lang' ? opts.getLangOptions(item.role) : item.options);
@@ -87,10 +154,15 @@
       return item.type === 'lang' ? `${DS.languageName(value)} (not on this video)` : String(value ?? '');
     }
 
-    function closeSubmenu() {
-      submenu.hidden = true;
-      submenu.textContent = '';
-      list.hidden = false;
+    function closeSubmenu({ animate = false } = {}) {
+      if (submenu.hidden) return;
+      if (!animate) {
+        submenu.hidden = true;
+        submenu.textContent = '';
+        list.hidden = false;
+        return;
+      }
+      swap(submenu, list, 'back');
     }
 
     function openSubmenu(entry) {
@@ -103,7 +175,7 @@
       const back = el('button', 'ds-submenu__back');
       back.type = 'button';
       back.setAttribute('aria-label', 'Back');
-      back.addEventListener('click', closeSubmenu);
+      back.addEventListener('click', () => closeSubmenu({ animate: true }));
       header.appendChild(back);
       header.appendChild(el('span', 'ds-submenu__title', item.label));
       submenu.appendChild(header);
@@ -114,7 +186,7 @@
         entry.value.textContent = currentLabel(item);
         DS.setSettings({ [item.key]: v });
         applyVisibility();
-        closeSubmenu();
+        closeSubmenu({ animate: true });
       };
       const addOption = (o) => {
         const node = el('div', 'ds-option', o.label);
@@ -142,9 +214,8 @@
       }
 
       submenu.appendChild(body);
-      list.hidden = true;
-      submenu.hidden = false;
       submenu.scrollTop = 0;
+      swap(list, submenu, 'forward');
       back.focus();
     }
 
@@ -157,6 +228,8 @@
       }
 
       const row = el('div', 'ds-row');
+      const icon = DS.rowIcon(item.key);
+      if (icon) row.appendChild(icon);
       let input;
       let value;
 
@@ -258,6 +331,8 @@
       applyVisibility();
     }
 
-    return { refresh };
+    // The caller puts its own furniture inside the list view, so that it slides
+    // away with the rest when a submenu opens.
+    return { refresh, listView: list };
   };
 })();

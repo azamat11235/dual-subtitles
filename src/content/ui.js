@@ -26,7 +26,10 @@
   // -------------------------------- language list -----------------------------
 
   function trackLabel(t) {
-    const name = t.displayName || DS.languageName(t.languageCode);
+    // YouTube's own name already says "(auto-generated)" where it applies, so
+    // adding our own suffix to it produced "English (auto-generated) (automatic)".
+    if (t.displayName) return t.displayName;
+    const name = DS.languageName(t.languageCode);
     return t.kind === 'asr' ? `${name} (automatic)` : name;
   }
 
@@ -80,7 +83,6 @@
     const title = document.createElement('div');
     title.className = 'ds-panel__title';
     title.append('Dual subtitles');
-    p.appendChild(title);
 
     const master = document.createElement('label');
     master.className = 'ds-switch';
@@ -98,18 +100,21 @@
     masterInput.addEventListener('change', () => DS.setSettings({ enabled: masterInput.checked }));
     const masterRow = document.createElement('div');
     masterRow.className = 'ds-row';
+    const masterIcon = DS.rowIcon('enabled');
+    if (masterIcon) masterRow.appendChild(masterIcon);
     masterRow.appendChild(master);
-    p.appendChild(masterRow);
     p._masterInput = masterInput;
 
     const status = document.createElement('div');
     status.className = 'ds-status';
-    p.appendChild(status);
     p._status = status;
 
     const body = document.createElement('div');
     p.appendChild(body);
     form = DS.buildSettingsForm(body, { getLangOptions });
+    // Inside the list view rather than above it, so the whole panel slides away
+    // together when a submenu opens.
+    form.listView.prepend(title, masterRow, status);
 
     // Clicks inside the panel must not reach the player (or it would pause/seek).
     for (const ev of ['click', 'dblclick', 'mousedown', 'keydown', 'wheel']) {
@@ -134,11 +139,34 @@
     document.querySelector('.ytp-settings-button')?.click();
   }
 
+  /**
+   * Holds the control bar open while our panel is.
+   *
+   * The player hides the bar as soon as the pointer leaves it, which would drop
+   * the timeline and the buttons out from under a panel that is still on screen.
+   * It keeps its own menus visible the same way; there is no API for it, so the
+   * class it hides by is taken back off whenever it reappears.
+   */
+  let autohideGuard = null;
+  function holdControls(on) {
+    autohideGuard?.disconnect();
+    autohideGuard = null;
+    if (!on) return;
+
+    const player = document.querySelector('#movie_player, .html5-video-player');
+    if (!player) return;
+    const unhide = () => player.classList.remove('ytp-autohide');
+    unhide();
+    autohideGuard = new MutationObserver(unhide);
+    autohideGuard.observe(player, { attributes: true, attributeFilter: ['class'] });
+  }
+
   function togglePanel(show) {
     if (!panel) return;
     const next = show ?? panel.hidden;
     panel.hidden = !next;
     button?.setAttribute('aria-expanded', String(next));
+    holdControls(next);
     if (next) {
       closePlayerMenu();
       form?.refresh();

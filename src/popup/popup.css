@@ -50,10 +50,3 @@ body {
 .linklike:hover { text-decoration: underline; }
 
 .muted { color: rgba(255, 255, 255, 0.5); font-size: 12px; }
-
-/* The popup hides its own furniture while a submenu is open, for the same
-   reason the panel does. */
-body:has(.ds-form__submenu:not([hidden])) > .ds-panel__title,
-body:has(.ds-form__submenu:not([hidden])) > .ds-row,
-body:has(.ds-form__submenu:not([hidden])) > .hint,
-body:has(.ds-form__submenu:not([hidden])) > .foot { display: none; }

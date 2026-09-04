@@ -37,6 +37,24 @@
 /* .ytp-menuitem:not([aria-disabled="true"]):hover, matched. */
 .ds-row:hover { background: rgba(255, 255, 255, 0.1); }
 
+/* The glyph column, sized as the player's: a 24px icon with 24px after it, so
+   the labels start 64px in from the edge exactly as its own menu does. */
+.ds-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-right: 24px;
+  color: #eee;
+}
+
+.ds-icon svg { display: block; width: 24px; height: 24px; }
+
+/* Rows with no glyph keep the same text column. */
+.ds-row > label:first-child { margin-left: 48px; }
+.ds-row > .ds-icon + label { margin-left: 0; }
+.ds-row > .ds-switch:first-child { margin-left: 48px; }
+.ds-row > .ds-icon + .ds-switch { margin-left: 0; }
+
 /* The label takes the slack, so everything after it is pushed against the right
    edge as one group. Without this the row spread its three parts evenly and the
    sliders floated at a different offset in every row. */
@@ -50,7 +68,10 @@
 .ds-row--menu { cursor: pointer; }
 
 .ds-value {
-  flex: 0 1 auto;
+  /* Shrinks far more readily than the label beside it: with both shrinking
+     evenly a long value squeezed the label until its text spilled across. This
+     one has an ellipsis to fall back on; the label does not. */
+  flex: 0 100 auto;
   min-width: 0;
   padding-right: 20px;
   color: rgba(255, 255, 255, 0.7);
@@ -85,7 +106,6 @@
   height: 48px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
   background-color: transparent;
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='%23fff'%3E%3Cpath d='m19.41 20.09-4.58-4.59 4.58-4.59L18 9.5l-6 6 6 6z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -93,8 +113,6 @@
   background-size: 32px 32px;
   cursor: pointer;
 }
-
-.ds-submenu__back:hover { background-color: rgba(255, 255, 255, 0.1); }
 
 .ds-submenu__title {
   font-size: 12px;
@@ -120,11 +138,27 @@
 .ds-option:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); outline-offset: -1px; }
 .ds-option[aria-checked="true"] { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"); }
 
-/* While a submenu is open the surface shows only that, the way the player's
-   menu does -- title, master switch and status step aside. */
-.ds-panel:has(.ds-form__submenu:not([hidden])) > .ds-panel__title,
-.ds-panel:has(.ds-form__submenu:not([hidden])) > .ds-row,
-.ds-panel:has(.ds-form__submenu:not([hidden])) > .ds-status { display: none; }
+/* Moving between the list and a submenu, the way the player moves between its
+   own panels: the two slide past each other while the surface takes on the
+   height of the one arriving. .ytp-popup-animating puts the same 0.25s curve on
+   .ytp-panel, and the panels sit on top of each other at translateX(+-100%).
+
+   The views are only taken out of flow while that runs, so at rest the panel is
+   exactly as tall as whichever view is showing. */
+.ds-form { position: relative; }
+
+.ds-form--animating {
+  overflow: hidden;
+  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ds-form--animating .ds-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 .ds-row input[type="text"] {
   flex: 0 1 auto;
