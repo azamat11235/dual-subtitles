@@ -199,7 +199,7 @@
 
   // ───────────────────────────── fetching subtitles ────────────────────────────
 
-  function buildFromPot(potUrl, track, tlang) {
+  function buildFromPot(potUrl, track, tlang, variant) {
     const u = new URL(potUrl);
     u.searchParams.set('fmt', 'json3');
     // The parameters that select the track. They are unsigned and can be swapped.
@@ -216,6 +216,13 @@
     if (kind) u.searchParams.set('kind', kind); else u.searchParams.delete('kind');
 
     if (tlang) u.searchParams.set('tlang', tlang); else u.searchParams.delete('tlang');
+
+    // `variant` belongs to the track, not to the signature. The original
+    // transcript is served without it and a dub-derived one only with it, so
+    // carrying the captured value over to another language earns a 200 with an
+    // empty body. Since the intercepted URL may have come from either, the
+    // caller tries it both ways.
+    if (variant) u.searchParams.set('variant', variant); else u.searchParams.delete('variant');
     return u.toString();
   }
 
@@ -224,6 +231,13 @@
     const u = new URL(track.baseUrl, location.origin);
     if (fmt) u.searchParams.set('fmt', fmt); else u.searchParams.delete('fmt');
     if (tlang) u.searchParams.set('tlang', tlang); else u.searchParams.delete('tlang');
+
+    // `variant` belongs to the track, not to the signature. The original
+    // transcript is served without it and a dub-derived one only with it, so
+    // carrying the captured value over to another language earns a 200 with an
+    // empty body. Since the intercepted URL may have come from either, the
+    // caller tries it both ways.
+    if (variant) u.searchParams.set('variant', variant); else u.searchParams.delete('variant');
     return u.toString();
   }
 
@@ -269,7 +283,10 @@
 
     const run = async (potUrl) => {
       const strategies = [];
-      if (potUrl) strategies.push({ url: buildFromPot(potUrl, track, tlang), xml: false });
+      if (potUrl) {
+        strategies.push({ url: buildFromPot(potUrl, track, tlang, null), xml: false });
+        strategies.push({ url: buildFromPot(potUrl, track, tlang, 'timing-optimized'), xml: false });
+      }
       const jsonBase = buildFromBase(track, tlang, 'json3');
       if (jsonBase) strategies.push({ url: jsonBase, xml: false });
       const xmlBase = buildFromBase(track, tlang, null);
@@ -277,15 +294,22 @@
 
       if (!strategies.length) return { error: 'no-url' };
 
+      // Every strategy is tried once before anything is retried. An empty body
+      // is both what a wrong `variant` returns and what rate limiting returns,
+      // and only the first is fixed by the next strategy -- pausing before
+      // reaching it would cost seconds on the common case.
       let lastError = 'unknown';
-      for (const s of strategies) {
-        for (let tryNo = 0; tryNo < 3; tryNo++) {
-          if (tryNo) await DS.sleep(400 * tryNo * tryNo); // 0 / 400 / 1600 ms
+      const spent = new Set();
+      for (let pass = 0; pass < 3; pass++) {
+        if (pass) await DS.sleep(400 * pass * pass); // 0 / 400 / 1600 ms
+        for (const s of strategies) {
+          if (spent.has(s)) continue;
           const r = await attempt(s.url, s.xml);
           if (r.cues) return r;
           lastError = r.error;
-          if (!RETRYABLE.has(r.error)) break; // 403/parse — retrying will not help
+          if (!RETRYABLE.has(r.error)) spent.add(s); // 403/parse — retrying will not help
         }
+        if (spent.size === strategies.length) break;
       }
       return { error: lastError };
     };

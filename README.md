@@ -125,6 +125,25 @@ so one intercepted URL can fetch **any** track and any translation. If the
 player has not loaded subtitles yet, the extension switches them on for a
 moment through the player API, catches the request and puts everything back.
 
+One parameter does not travel with the rest. `variant=timing-optimized` belongs
+to the track: the original transcript is served without it, a transcript derived
+from a dub only with it. Carry the captured value over to another language and
+YouTube answers `200` with an empty body — the same way it refuses a request with
+no `pot` at all. Measured on one video:
+
+```
+captured de-DE URL, as-is                 -> 194 cues
+same URL with lang=en, variant kept       -> 200, 0 bytes
+same URL with lang=en, variant removed    -> 164 cues
+captured en URL with lang=de-DE           -> 200, 0 bytes
+```
+
+Since the intercepted URL may have come from either kind of track, both forms are
+tried. Every strategy gets one attempt before any of them is retried: an empty
+body means either a mismatched `variant` or rate limiting, and only the first is
+cured by the next request, so pausing before reaching it would cost seconds on
+the ordinary case.
+
 ```
 src/
   page/inject.js            main world: player API and playerResponse
