@@ -43,34 +43,17 @@
 
   // ------------------------------ picking tracks ------------------------------
 
-  const baseLang = (code) => String(code || '').split('-')[0].toLowerCase();
-
-  function pickTrack(tracks, lang, defaultAudioLanguage) {
-    if (!tracks?.length) return null;
-
-    if (!lang || lang === 'auto') {
-      // "Video language": the track matching the audio, else the first manual one.
-      const byAudio = defaultAudioLanguage &&
-        tracks.find((t) => baseLang(t.languageCode) === baseLang(defaultAudioLanguage));
-      return byAudio || tracks.find((t) => !t.kind) || tracks[0];
-    }
-
-    const exact = tracks.filter((t) => t.languageCode.toLowerCase() === lang.toLowerCase());
-    const loose = tracks.filter((t) => baseLang(t.languageCode) === baseLang(lang));
-    const pool = exact.length ? exact : loose;
-    if (!pool.length) return null;
-    // A manual track always beats an automatically recognised one.
-    return pool.find((t) => !t.kind) || pool[0];
-  }
+  const baseLang = DS.baseLang;
 
   /**
    * Decides where the text for each line comes from.
    * @returns {{primary:Object, secondary:Object}}
    */
   function buildPlan(info, settings) {
-    const { tracks, translationLanguages, defaultAudioLanguage } = info;
+    const { tracks, translationLanguages } = info;
+    const videoLanguage = DS.videoLanguageOf(info);
 
-    const primaryTrack = pickTrack(tracks, settings.primaryLang, defaultAudioLanguage);
+    const primaryTrack = DS.pickTrack(tracks, settings.primaryLang, videoLanguage);
     const primary = primaryTrack
       ? { source: 'native', track: primaryTrack, lang: primaryTrack.languageCode }
       : { source: 'none', reason: 'no track for the first language' };
@@ -81,7 +64,7 @@
     if (!wanted || wanted === 'off') {
       secondary = { source: 'none', reason: 'second language is off' };
     } else {
-      const nativeSecond = pickTrack(tracks, wanted, null);
+      const nativeSecond = DS.pickTrack(tracks, wanted, null);
       const sameAsPrimary = nativeSecond && primaryTrack &&
         DS.trackKey(nativeSecond) === DS.trackKey(primaryTrack);
 

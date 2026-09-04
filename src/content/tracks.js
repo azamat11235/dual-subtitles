@@ -179,9 +179,16 @@
       if (dom?.tracks?.length) info = { videoId, tracks: dom.tracks, translationLanguages: info?.translationLanguages || [] };
     }
     if (!info || !info.tracks) return null;
+    // Resolve the index before normalising: it points into the raw list, and
+    // normalising drops the odd entry that carries no language.
+    const at = info.defaultCaptionTrackIndex;
+    const defaultCaptionLanguage = Number.isInteger(at)
+      ? (info.tracks[at]?.languageCode || null)
+      : null;
     return {
       videoId: info.videoId || videoId,
       defaultAudioLanguage: info.defaultAudioLanguage || null,
+      defaultCaptionLanguage,
       tracks: info.tracks.map(normalizeTrack).filter((t) => t.languageCode),
       translationLanguages: (info.translationLanguages || []).map((l) => ({
         code: l.languageCode,

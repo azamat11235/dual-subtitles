@@ -37,10 +37,16 @@
       const pr = getPlayerResponse();
       if (!pr) return null;
       const r = pr.captions?.playerCaptionsTracklistRenderer || {};
+      // On an auto-dubbed video defaultAudioLanguage is empty, but every entry of
+      // audioTracks points defaultCaptionTrackIndex at the original transcript.
+      const audio = r.audioTracks || [];
+      const forAudio = audio[r.defaultAudioTrackIndex] || audio[0];
+      const captionIndex = forAudio && forAudio.defaultCaptionTrackIndex;
       return {
         videoId: pr.videoDetails?.videoId || null,
         title: pr.videoDetails?.title || '',
         defaultAudioLanguage: pr.videoDetails?.defaultAudioLanguage || null,
+        defaultCaptionTrackIndex: Number.isInteger(captionIndex) ? captionIndex : null,
         tracks: r.captionTracks || [],
         translationLanguages: r.translationLanguages || []
       };
