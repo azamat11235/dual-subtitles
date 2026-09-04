@@ -108,7 +108,7 @@
     scanExistingEntries();
     if (!force && potUrls.has(videoId)) return potUrls.get(videoId);
 
-    const primed = await callPage('primeCaptions', { force }, 8000);
+    const primed = await callPage('primeCaptions', {}, 8000);
     if (!primed) return null;
 
     for (let i = 0; i < 20; i++) {
@@ -199,48 +199,6 @@
 
   // ───────────────────────────── fetching subtitles ────────────────────────────
 
-  function buildFromPot(potUrl, track, tlang, variant) {
-    const u = new URL(potUrl);
-    u.searchParams.set('fmt', 'json3');
-    // The parameters that select the track. They are unsigned and can be swapped.
-    const src = track.baseUrl ? new URL(track.baseUrl, location.origin).searchParams : null;
-    const pick = (key, fallback) => (src ? src.get(key) : fallback);
-
-    const lang = pick('lang', track.languageCode) ?? track.languageCode;
-    u.searchParams.set('lang', lang);
-
-    const name = pick('name', track.name || null);
-    if (name) u.searchParams.set('name', name); else u.searchParams.delete('name');
-
-    const kind = pick('kind', track.kind || null);
-    if (kind) u.searchParams.set('kind', kind); else u.searchParams.delete('kind');
-
-    if (tlang) u.searchParams.set('tlang', tlang); else u.searchParams.delete('tlang');
-
-    // `variant` belongs to the track, not to the signature. The original
-    // transcript is served without it and a dub-derived one only with it, so
-    // carrying the captured value over to another language earns a 200 with an
-    // empty body. Since the intercepted URL may have come from either, the
-    // caller tries it both ways.
-    if (variant) u.searchParams.set('variant', variant); else u.searchParams.delete('variant');
-    return u.toString();
-  }
-
-  function buildFromBase(track, tlang, fmt) {
-    if (!track.baseUrl) return null;
-    const u = new URL(track.baseUrl, location.origin);
-    if (fmt) u.searchParams.set('fmt', fmt); else u.searchParams.delete('fmt');
-    if (tlang) u.searchParams.set('tlang', tlang); else u.searchParams.delete('tlang');
-
-    // `variant` belongs to the track, not to the signature. The original
-    // transcript is served without it and a dub-derived one only with it, so
-    // carrying the captured value over to another language earns a 200 with an
-    // empty body. Since the intercepted URL may have come from either, the
-    // caller tries it both ways.
-    if (variant) u.searchParams.set('variant', variant); else u.searchParams.delete('variant');
-    return u.toString();
-  }
-
   const RETRYABLE = new Set(['empty', 'rate-limit', 'server', 'network']);
 
   /**
@@ -284,12 +242,12 @@
     const run = async (potUrl) => {
       const strategies = [];
       if (potUrl) {
-        strategies.push({ url: buildFromPot(potUrl, track, tlang, null), xml: false });
-        strategies.push({ url: buildFromPot(potUrl, track, tlang, 'timing-optimized'), xml: false });
+        strategies.push({ url: DS.buildFromPot(potUrl, track, tlang, null), xml: false });
+        strategies.push({ url: DS.buildFromPot(potUrl, track, tlang, 'timing-optimized'), xml: false });
       }
-      const jsonBase = buildFromBase(track, tlang, 'json3');
+      const jsonBase = DS.buildFromBase(track, tlang, 'json3');
       if (jsonBase) strategies.push({ url: jsonBase, xml: false });
-      const xmlBase = buildFromBase(track, tlang, null);
+      const xmlBase = DS.buildFromBase(track, tlang, null);
       if (xmlBase) strategies.push({ url: xmlBase, xml: true });
 
       if (!strategies.length) return { error: 'no-url' };

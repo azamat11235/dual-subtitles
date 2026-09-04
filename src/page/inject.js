@@ -53,16 +53,21 @@
     },
 
     /**
-     * Makes the player request a subtitle track once — purely so that a URL with
-     * a valid pot token shows up in Resource Timing.
+     * Makes the player request a subtitle track — purely so that a URL with a
+     * valid pot token shows up in Resource Timing.
+     *
+     * The target is always a track other than the one showing. Asking for the
+     * one already on screen makes the player answer from its own cache without
+     * touching the network, and that is precisely the case this is called in:
+     * the caller only gets here when it has no URL yet, so "captions are already
+     * on" used to end the attempt before it made a single request.
      */
-    primeCaptions({ force = false } = {}) {
+    primeCaptions() {
       const p = findPlayer();
       if (!p || typeof p.getOption !== 'function') return null;
 
       let current = null;
       try { current = p.getOption('captions', 'track'); } catch { /* module not loaded yet */ }
-      if (current && current.languageCode && !force) return { alreadyOn: true };
 
       try { if (typeof p.loadModule === 'function') p.loadModule('captions'); } catch { /* already loaded */ }
 
@@ -70,11 +75,7 @@
       try { list = p.getOption('captions', 'tracklist', { includeAsr: true }) || []; } catch { /* no list */ }
       if (!list.length) return null;
 
-      // With force, pick a track other than the current one: for the same track
-      // the player answers from its own cache and makes no network request.
-      const target = force
-        ? (list.find((t) => t.languageCode !== current?.languageCode) || list[0])
-        : list[0];
+      const target = list.find((t) => t.languageCode !== current?.languageCode) || list[0];
 
       if (!didPrime) { savedTrack = current || {}; didPrime = true; }
       try {

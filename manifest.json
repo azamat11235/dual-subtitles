@@ -39,6 +39,7 @@
         "src/content/parse.js",
         "src/content/align.js",
         "src/content/select.js",
+        "src/content/urls.js",
         "src/content/tracks.js",
         "src/content/render.js",
         "src/content/ui.js",

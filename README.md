@@ -152,6 +152,7 @@ src/
     parse.js                json3 parsing, sentence merging, active-cue lookup
     align.js                mapping the second language onto the first timeline
     select.js               which track feeds which line
+    urls.js                 building the /api/timedtext request
     tracks.js               pot-URL interception, track list, subtitle fetching
     render.js               the overlay and the per-frame segment lookup
     ui.js                   the player button and the settings panel
@@ -215,11 +216,12 @@ moved.
 npm test
 ```
 
-63 tests with no dependencies: `json3` parsing against fixtures shaped like a
+73 tests with no dependencies: `json3` parsing against fixtures shaped like a
 real response; sentence merging; active-cue lookup (checked against a full
 scan); alignment of the second language onto the first timeline, including the
 case where the translated track is missing a cue; track selection, built on the
-real track list of an auto-dubbed video; the geometry that keeps a dragged block
+real track list of an auto-dubbed video; request building, including the
+parameter that must not be carried across tracks; the geometry that keeps a dragged block
 inside the player; translation batching, provider order and the concurrency
 limiter.
 
