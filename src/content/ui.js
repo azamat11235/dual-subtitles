@@ -223,7 +223,9 @@
     button = document.createElement('button');
     button.className = 'ds-btn';
     button.type = 'button';
-    button.title = 'Dual subtitles';
+    // data-title rather than title: the tooltip is drawn in CSS, and a native
+    // one on top of it would be a second bubble a moment later.
+    button.dataset.title = 'Dual subtitles';
     button.setAttribute('aria-label', 'Dual subtitles');
     button.innerHTML = ICON + '<span class="ds-btn-underline"></span>';
     button.addEventListener('click', (e) => {

@@ -26,7 +26,7 @@
     { section: 'Languages' },
     { key: 'primaryLang', label: 'First', type: 'lang', role: 'primary' },
     { key: 'secondaryLang', label: 'Second', type: 'lang', role: 'secondary' },
-    { key: 'allowTranslation', label: 'Translate when there is no ready-made track', type: 'bool' },
+    { key: 'allowTranslation', label: 'Translate if no track exists', type: 'bool' },
     { key: 'translator', label: 'Translator', type: 'select', options: TRANSLATORS,
       when: (s) => s.allowTranslation },
     { key: 'deeplKey', label: 'DeepL key', type: 'text', placeholder: 'xxxx-xxxx-...:fx',

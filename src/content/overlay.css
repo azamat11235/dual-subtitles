@@ -123,6 +123,59 @@
 
 .ds-btn:focus { outline: 0; }
 
+/* The hover treatment the player gives its own controls: a pill behind the
+   glyph, and a tooltip above it. Both are keyed to .ytp-button in YouTube's
+   stylesheet, and wearing that class breaks the layout, so they are reproduced
+   here -- the pill from the player's own colour variables, so it follows the
+   theme, with the same 40px radius that turns into a circle on a square button. */
+.ds-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 40px;
+  background-color: transparent;
+  pointer-events: none;
+  transition: background-color 0.2s cubic-bezier(0.05, 0, 0, 1);
+}
+
+.ds-btn:hover::before {
+  background-color: var(--yt-sys-color-baseline--overlay-button-secondary, rgba(255, 255, 255, 0.1));
+}
+
+.ds-btn:active::before {
+  background-color: var(--yt-sys-color-baseline--overlay-tonal-hover, rgba(255, 255, 255, 0.2));
+}
+
+/* Measured off the player's own tooltip: the bubble is 66x25 around a 48x15
+   text box, which is 5px and 9px of padding, and it floats 21.8px above the top
+   of the button. */
+.ds-btn::after {
+  content: attr(data-title);
+  position: absolute;
+  bottom: calc(100% + 22px);
+  left: 50%;
+  transform: translateX(-50%);
+
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #000;
+
+  color: rgb(238, 238, 238);
+  font-family: "YouTube Noto", Roboto, Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 15px;
+  letter-spacing: normal;
+  white-space: nowrap;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.ds-btn:hover::after,
+.ds-btn:focus-visible::after { opacity: 1; }
+
 /* Fallback for a control bar with no neighbour to measure. */
 .ds-btn svg { width: 100%; height: 100%; box-sizing: border-box; }
 
@@ -156,20 +209,20 @@
   bottom: 60px;
   z-index: 60;
 
-  width: 330px;
+  width: 340px;
   max-height: min(560px, calc(100% - 90px));
   overflow-y: auto;
-  padding: 14px;
+  padding: 0;
   box-sizing: border-box;
 
-  background: rgba(28, 28, 28, 0.96);
+  /* The player's own menu: translucent black, 12px radius, no shadow. */
+  background: rgba(0, 0, 0, 0.6);
   border-radius: 12px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
 
   color: #eee;
-  font-family: Roboto, Arial, sans-serif;
-  font-size: 13px;
-  line-height: 1.45;
+  font-family: "YouTube Noto", Roboto, Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
 
   cursor: default;
 }
