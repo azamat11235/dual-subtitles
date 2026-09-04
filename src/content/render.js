@@ -272,8 +272,6 @@
       st.setProperty('--ds-bg', `rgba(8, 8, 8, ${s.background / 100})`);
       st.setProperty('--ds-primary-color', s.primaryColor);
       st.setProperty('--ds-secondary-color', s.secondaryColor);
-      this.lines.primary.style.order = s.swapOrder ? '2' : '1';
-      this.lines.secondary.style.order = s.swapOrder ? '1' : '2';
       this.root.classList.toggle('ds-overlay--interactive', !!s.pauseOnHover);
       // While a drag is running the pointer owns the position, not the settings.
       if (!this.press?.dragging) this.applyPosition(s.captionX, s.captionY);

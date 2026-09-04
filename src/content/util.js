@@ -33,11 +33,8 @@
     background: 55,       // backdrop opacity, %
     primaryColor: '#ffffff',
     secondaryColor: '#7fd1ff',
-    swapOrder: false,     // true — second language on top
     // Behaviour
-    hideNative: true,     // hide YouTube's own subtitles
-    pauseOnHover: false,  // pause when the mouse is over the subtitles
-    groupBySentence: true // show whole sentences instead of raw cues
+    pauseOnHover: false   // pause when the mouse is over the subtitles
   };
 
   let cache = null;

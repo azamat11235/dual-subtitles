@@ -206,9 +206,10 @@
 
     // The display unit, shared by both lines. Nothing changes on screen until
     // the current unit ends, which is where the synchronisation comes from.
-    let units = settings.groupBySentence
-      ? sentences
-      : primaryCues.map((c) => ({ ...c, sources: [c] }));
+    // One cue at a time, as the video itself captions them. The sentences above
+    // are still built: a translator needs whole ones to work with, and their
+    // text is mapped back onto the cues it was made from.
+    let units = primaryCues.map((c) => ({ ...c, sources: [c] }));
     let secondaryTexts = units.map(() => '');
 
     // --- second line ---
@@ -297,7 +298,9 @@
     }));
 
     renderer.setSegments(segments);
-    player.classList.toggle('ds-hide-native', settings.hideNative && segments.length > 0);
+    // YouTube's own subtitles always give way to ours -- two sets of captions
+    // over the same frames is nobody's idea of readable.
+    player.classList.toggle('ds-hide-native', segments.length > 0);
 
     DS.state.busy = false;
     setStatus(summaryText(plan, segments));
@@ -368,7 +371,7 @@
 
   const APPEARANCE_KEYS = new Set([
     'fontSize', 'lineGap', 'bottomOffset', 'background',
-    'primaryColor', 'secondaryColor', 'swapOrder', 'pauseOnHover',
+    'primaryColor', 'secondaryColor', 'pauseOnHover',
     'captionX', 'captionY'
   ]);
 
@@ -386,10 +389,6 @@
       renderer.applySettings(settings);
       emit();
       return;
-    }
-    if ('hideNative' in patch) {
-      document.querySelector('.html5-video-player')
-        ?.classList.toggle('ds-hide-native', !!settings.hideNative);
     }
     scheduleRun('settings');
   });

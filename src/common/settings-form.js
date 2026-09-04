@@ -41,12 +41,9 @@
     { key: 'background', label: 'Backdrop', type: 'range', min: 0, max: 100, step: 5, suffix: '%' },
     { key: 'primaryColor', label: 'First language colour', type: 'color' },
     { key: 'secondaryColor', label: 'Second language colour', type: 'color' },
-    { key: 'swapOrder', label: 'Second language on top', type: 'bool' },
 
     { section: 'Behaviour' },
-    { key: 'hideNative', label: "Hide YouTube's own subtitles", type: 'bool' },
-    { key: 'pauseOnHover', label: 'Pause when hovering the subtitles', type: 'bool' },
-    { key: 'groupBySentence', label: 'Show whole sentences', type: 'bool' }
+    { key: 'pauseOnHover', label: 'Pause when hovering the subtitles', type: 'bool' }
   ];
 
   function el(tag, cls, text) {

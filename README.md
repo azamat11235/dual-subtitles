@@ -188,10 +188,11 @@ The panel opens from the button in the player (that is also where the current
 video's track list is visible); the extension popup sets the defaults.
 
 * languages of the first and second line, translator, DeepL key;
-* size, offset from the bottom, backdrop opacity, colours, line order;
-* hide YouTube's own subtitles;
-* pause when the mouse is over the subtitles (handy when learning a language);
-* show whole sentences instead of raw cues.
+* size, offset from the bottom, backdrop opacity, colours;
+* pause when the mouse is over the subtitles (handy when learning a language).
+
+The first line stays on top, one cue at a time, and YouTube's own subtitles are
+always hidden while ours are on screen.
 
 ### Moving the subtitles
 
