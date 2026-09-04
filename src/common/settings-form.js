@@ -115,6 +115,10 @@
      * sits in normal flow, so the panel is exactly as tall as its contents
      * without anyone having to measure it.
      */
+    // The surface that actually changes size: the panel in the player, or the
+    // form itself in the popup, where the window follows its content.
+    const shell = root.closest('.ds-panel') || root;
+
     let settle = null;
     function swap(from, to, direction) {
       const back = direction === 'back';
@@ -123,28 +127,52 @@
       // be reused. Finish it properly first rather than just dropping its timer.
       settle?.();
 
-      const startHeight = root.offsetHeight;
+      // Both heights are read with the views still in normal flow, so a ceiling
+      // on the panel has already been applied to them. Measuring the incoming
+      // view after it was taken out of flow gave nothing to measure against and
+      // collapsed the panel to nothing.
+      const startHeight = shell.offsetHeight;
+      const wasHidden = to.hidden;
+      from.hidden = true;
+      to.hidden = false;
+      const endHeight = shell.offsetHeight;
+      from.hidden = false;
+      to.hidden = wasHidden;
+
       to.hidden = false;
       root.classList.add('ds-form--animating');
       to.style.transform = `translateX(${back ? '-100%' : '100%'})`;
-      const endHeight = to.offsetHeight;
+      shell.classList.add('ds-shell--animating');
+      shell.style.overflow = 'hidden';
+      shell.style.height = `${startHeight}px`;
 
-      root.style.height = `${startHeight}px`;
-      void root.offsetHeight;               // let the start height take effect
-      root.style.height = `${endHeight}px`;
-      to.style.transform = 'translateX(0)';
-      from.style.transform = `translateX(${back ? '100%' : '-100%'})`;
-
-      const timer = setTimeout(() => settle?.(), 260);
-      settle = () => {
+      const done = () => {
+        shell.removeEventListener('transitionend', onEnd);
         clearTimeout(timer);
         settle = null;
         root.classList.remove('ds-form--animating');
-        root.style.height = '';
+        shell.classList.remove('ds-shell--animating');
+        shell.style.overflow = '';
+        shell.style.height = '';
         from.hidden = true;
         from.style.transform = '';
         to.style.transform = '';
       };
+      const onEnd = (e) => { if (e.target === shell && e.propertyName === 'height') done(); };
+      shell.addEventListener('transitionend', onEnd);
+      // The end of the transition finishes this, not a stopwatch racing it; the
+      // timer is only for a transition that never starts at all.
+      const timer = setTimeout(done, 600);
+      settle = done;
+
+      // Two frames: the first carries the starting height and offset into the
+      // style system, the second is what the transition runs from.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (settle !== done) return;          // superseded before it began
+        shell.style.height = `${endHeight}px`;
+        to.style.transform = 'translateX(0)';
+        from.style.transform = `translateX(${back ? '100%' : '-100%'})`;
+      }));
     }
 
     const optionsFor = (item) =>

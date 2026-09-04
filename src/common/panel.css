@@ -147,10 +147,7 @@
    exactly as tall as whichever view is showing. */
 .ds-form { position: relative; }
 
-.ds-form--animating {
-  overflow: hidden;
-  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
+.ds-shell--animating { transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
 
 .ds-form--animating .ds-view {
   position: absolute;
