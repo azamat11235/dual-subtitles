@@ -1,9 +1,10 @@
 /**
- * Отрисовка двух строк субтитров поверх плеера.
+ * Drawing the two subtitle lines over the player.
  *
- * Каждая дорожка живёт сама по себе: на каждом кадре ищем активную реплику
- * отдельно для верхней и нижней строки. Так одинаково работают и две родные
- * дорожки с разным таймингом, и машинный перевод, склеенный по предложениям.
+ * Both lines share one timeline. A segment carries the text of both languages,
+ * and every frame looks up exactly one segment, so the lines can never switch at
+ * different moments — synchronisation is a property of the data here, not
+ * something the caller has to keep arranging.
  */
 (() => {
   const DS = (window.DS = window.DS || {});
@@ -14,8 +15,9 @@
       this.video = null;
       this.root = null;
       this.lines = { primary: null, secondary: null };
-      this.cues = { primary: [], secondary: [] };
-      this.hint = { primary: 0, secondary: 0 };
+      /** @type {Array<{start:number,end:number,primary:string,secondary:string}>} */
+      this.segments = [];
+      this.hint = 0;
       this.shown = { primary: null, secondary: null };
       this.settings = { ...DS.DEFAULTS };
       this.rafId = null;
@@ -25,7 +27,7 @@
 
     attach(player, video) {
       if (this.root && this.player === player) {
-        // Плеер тот же, но при SPA-переходе YouTube может подменить <video>.
+        // Same player, but YouTube may swap the <video> during an SPA change.
         this.video = video;
         return;
       }
@@ -46,7 +48,8 @@
         root.appendChild(line);
         return line;
       };
-      // Порядок в DOM меняем через CSS order, чтобы не пересобирать узлы.
+      // DOM order is fixed; the visual order is swapped through CSS order, so
+      // the nodes never have to be rebuilt.
       this.lines.primary = mk('primary');
       this.lines.secondary = mk('secondary');
 
@@ -90,23 +93,25 @@
       this.pausedByHover = false;
     };
 
-    // Клик по субтитрам должен работать как клик по видео — но не мешать
-    // выделять текст мышью.
+    // A click on the subtitles should behave like a click on the video — but
+    // must not get in the way of selecting the text with the mouse.
     onClick = () => {
       if (String(window.getSelection() || '').length) return;
       if (!this.video) return;
       if (this.video.paused) this.video.play().catch(() => {}); else this.video.pause();
     };
 
-    setCues(role, cues) {
-      this.cues[role] = cues || [];
-      this.hint[role] = 0;
-      this.shown[role] = null;
+    /** @param {Array<{start:number,end:number,primary:string,secondary:string}>} segments */
+    setSegments(segments) {
+      this.segments = segments || [];
+      this.hint = 0;
+      this.shown = { primary: null, secondary: null };
       this.tick(true);
     }
 
     clear() {
-      this.cues = { primary: [], secondary: [] };
+      this.segments = [];
+      this.hint = 0;
       this.shown = { primary: null, secondary: null };
       for (const role of ['primary', 'secondary']) {
         if (this.lines[role]) {
@@ -152,7 +157,7 @@
     tick(force = false) {
       if (!this.root || !this.video) return;
 
-      // Во время рекламы currentTime относится к ролику рекламы — прячемся.
+      // During an ad, currentTime belongs to the ad clip — hide.
       const isAd = this.player.classList.contains('ad-showing') ||
                    this.player.classList.contains('ad-interrupting');
       if (isAd) {
@@ -164,12 +169,14 @@
       this.root.classList.remove('ds-overlay--hidden');
 
       const t = this.video.currentTime * 1000;
+      const idx = DS.findActive(this.segments, t, this.hint);
+      if (idx >= 0) this.hint = idx;
+      const seg = idx >= 0 ? this.segments[idx] : null;
+
+      // One segment feeds both lines within the same frame.
       for (const role of ['primary', 'secondary']) {
-        const cues = this.cues[role];
-        const idx = DS.findActive(cues, t, this.hint[role]);
-        const text = idx >= 0 ? cues[idx].text : '';
+        const text = seg ? (seg[role] || '') : '';
         if (!force && text === this.shown[role]) continue;
-        this.hint[role] = idx >= 0 ? idx : this.hint[role];
         this.shown[role] = text;
         const line = this.lines[role];
         line.firstChild.textContent = text;

@@ -1,9 +1,9 @@
 /**
- * Кнопка в панели плеера и всплывающая панель настроек.
+ * The button in the player controls and the pop-out settings panel.
  *
- * Настройки живут прямо в плеере, а не только в попапе расширения: язык
- * второй строки часто хочется поменять именно на конкретном видео, не
- * отрывая взгляд от него.
+ * The settings live inside the player, not only in the extension popup: the
+ * language of the second line is often something you want to change on this
+ * particular video, without looking away from it.
  */
 (() => {
   const DS = (window.DS = window.DS || {});
@@ -19,11 +19,11 @@
   let panel = null;
   let form = null;
 
-  // ------------------------------ список языков -------------------------------
+  // -------------------------------- language list -----------------------------
 
   function trackLabel(t) {
     const name = t.displayName || DS.languageName(t.languageCode);
-    return t.kind === 'asr' ? `${name} (автоматические)` : name;
+    return t.kind === 'asr' ? `${name} (automatic)` : name;
   }
 
   function getLangOptions(role) {
@@ -31,18 +31,18 @@
     const tracks = info?.tracks || [];
 
     const head = role === 'primary'
-      ? [{ value: 'auto', label: 'Язык видео' }]
-      : [{ value: 'off', label: 'Выключен' }];
+      ? [{ value: 'auto', label: 'Video language' }]
+      : [{ value: 'off', label: 'Off' }];
 
     if (!tracks.length) {
       return [
         ...head,
-        { group: 'Языки', options: DS.COMMON_LANGS.map((c) => ({ value: c, label: DS.languageName(c) })) }
+        { group: 'Languages', options: DS.COMMON_LANGS.map((c) => ({ value: c, label: DS.languageName(c) })) }
       ];
     }
 
-    // Один язык может быть представлен ручной и автоматической дорожкой --
-    // в списке он должен быть один раз.
+    // One language can come as both a manual and an automatic track — it should
+    // appear in the list only once.
     const seen = new Set();
     const available = [];
     for (const t of tracks) {
@@ -51,7 +51,7 @@
       available.push({ value: t.languageCode, label: trackLabel(t) });
     }
 
-    const options = [...head, { group: 'Есть субтитры', options: available }];
+    const options = [...head, { group: 'Subtitles available', options: available }];
 
     if (role === 'secondary') {
       const translation = (info.translationLanguages || [])
@@ -60,13 +60,13 @@
       const pool = translation.length
         ? translation
         : DS.COMMON_LANGS.filter((c) => !seen.has(c)).map((c) => ({ value: c, label: DS.languageName(c) }));
-      options.push({ group: 'Перевести на', options: pool });
+      options.push({ group: 'Translate into', options: pool });
     }
 
     return options;
   }
 
-  // --------------------------------- панель -----------------------------------
+  // ------------------------------------ panel ---------------------------------
 
   function buildPanel(player) {
     const p = document.createElement('div');
@@ -75,12 +75,12 @@
 
     const title = document.createElement('div');
     title.className = 'ds-panel__title';
-    title.append('Двойные субтитры');
+    title.append('Dual subtitles');
     const close = document.createElement('button');
     close.className = 'ds-panel__close';
     close.type = 'button';
     close.textContent = '×';
-    close.title = 'Закрыть';
+    close.title = 'Close';
     close.addEventListener('click', () => togglePanel(false));
     title.appendChild(close);
     p.appendChild(title);
@@ -90,7 +90,7 @@
     const masterInput = document.createElement('input');
     masterInput.type = 'checkbox';
     master.appendChild(masterInput);
-    master.appendChild(document.createTextNode('Включено (Alt+D)'));
+    master.appendChild(document.createTextNode('Enabled (Alt+D)'));
     masterInput.addEventListener('change', () => DS.setSettings({ enabled: masterInput.checked }));
     const masterRow = document.createElement('div');
     masterRow.className = 'ds-row';
@@ -107,7 +107,7 @@
     p.appendChild(body);
     form = DS.buildSettingsForm(body, { getLangOptions });
 
-    // Клики внутри панели не должны доходить до плеера (иначе пауза/перемотка).
+    // Clicks inside the panel must not reach the player (or it would pause/seek).
     for (const ev of ['click', 'dblclick', 'mousedown', 'keydown', 'wheel']) {
       p.addEventListener(ev, (e) => e.stopPropagation());
     }
@@ -139,11 +139,11 @@
   function renderStatus() {
     if (!panel) return;
     const { text, kind } = DS.state.status;
-    panel._status.textContent = text || 'Готово';
+    panel._status.textContent = text || 'Ready';
     panel._status.className = 'ds-status' + (kind ? ` ds-status--${kind}` : '');
   }
 
-  // --------------------------------- кнопка -----------------------------------
+  // ----------------------------------- button ---------------------------------
 
   function ensureButton() {
     const controls = document.querySelector('.ytp-right-controls');
@@ -153,8 +153,8 @@
     button = document.createElement('button');
     button.className = 'ytp-button ds-btn';
     button.type = 'button';
-    button.title = 'Двойные субтитры';
-    button.setAttribute('aria-label', 'Двойные субтитры');
+    button.title = 'Dual subtitles';
+    button.setAttribute('aria-label', 'Dual subtitles');
     button.innerHTML = ICON + '<span class="ds-btn-underline"></span>';
     button.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -175,25 +175,24 @@
   async function syncButton() {
     if (!button) return;
     const s = await DS.getSettings();
-    const hasText = !!(DS.renderer?.cues.primary.length || DS.renderer?.cues.secondary.length);
+    const hasText = !!DS.renderer?.segments.length;
     button.classList.toggle('ds-btn--active', s.enabled && hasText);
     button.classList.toggle('ds-btn--busy', !!DS.state.busy);
   }
 
-  // ---------------------------------- старт -----------------------------------
+  // ------------------------------------ start ---------------------------------
 
   DS.initUi = function initUi() {
     ensureButton();
 
-    // Панель управления YouTube пересобирается при смене видео и в полноэкранном
-    // режиме -- следим и возвращаем кнопку на место. Наблюдатель дешёвый:
-    // реальная работа спрятана за debounce.
+    // YouTube rebuilds its control bar when the video changes and in fullscreen —
+    // watch for that and put the button back. The observer is cheap: the real
+    // work is hidden behind a debounce.
     const recheck = DS.debounce(() => ensureButton(), 200);
     new MutationObserver(recheck).observe(document.documentElement, { childList: true, subtree: true });
 
-    // Форму перерисовываем только когда сменился набор дорожек: делать это на
-    // каждое обновление статуса значило бы сбрасывать выпадающий список прямо
-    // под курсором пользователя.
+    // The form is only rebuilt when the set of tracks changed: doing it on every
+    // status update would reset a dropdown right under the user's cursor.
     let lastTracksKey = null;
     DS.onStateChange((state) => {
       renderStatus();

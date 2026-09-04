@@ -1,14 +1,20 @@
 /**
- * Оркестратор: следит за навигацией, выбирает дорожки под два языка,
- * достаёт субтитры и, если нужного языка нет, добывает перевод.
+ * Orchestrator: watches navigation, picks a track for each language, fetches the
+ * subtitles and, when the wanted language has no track of its own, gets it
+ * translated.
  *
- * Логика выбора второго языка (самое интересное место):
- *   1. Готовая дорожка нужного языка (ручная лучше автоматической).
- *   2. Автоперевод YouTube: тот же запрос с параметром tlang. Бесплатно,
- *      один запрос на всё видео, тайминги совпадают с оригиналом.
- *   3. Машинный перевод в фоновом воркере (Google / DeepL / MyMemory).
- *      Реплики предварительно склеиваются в предложения: перевод обрывка
- *      вроде "which means I had to" даёт мусор, перевод предложения -- нет.
+ * How the second language is chosen (the interesting part):
+ *   1. An existing track in that language (a manual one beats an automatic one).
+ *   2. YouTube's own translation: the same request with a `tlang` parameter.
+ *      Free, one request for the whole video, timings identical to the original.
+ *   3. Machine translation in the background worker (Google / DeepL / MyMemory).
+ *      Cues are merged into sentences first: translating a fragment such as
+ *      "which means I had to" gives nonsense, translating a sentence does not.
+ *
+ * Whatever the source, the result is folded into a single list of segments --
+ * {start, end, primary, secondary} -- built on the timing of the first line. The
+ * renderer knows nothing about where the second line came from, and the two
+ * lines cannot drift apart because they are two fields of one object.
  */
 (() => {
   const DS = (window.DS = window.DS || {});
@@ -16,7 +22,7 @@
   const renderer = new DS.Renderer();
   DS.renderer = renderer;
 
-  /** Публичное состояние -- его читает панель настроек. */
+  /** Public state — read by the settings panel. */
   DS.state = {
     videoId: null,
     info: null,          // {tracks, translationLanguages}
@@ -35,7 +41,7 @@
   }
   DS.setStatus = setStatus;
 
-  // ------------------------------ выбор дорожек -------------------------------
+  // ------------------------------ picking tracks ------------------------------
 
   const baseLang = (code) => String(code || '').split('-')[0].toLowerCase();
 
@@ -43,7 +49,7 @@
     if (!tracks?.length) return null;
 
     if (!lang || lang === 'auto') {
-      // "Язык видео": сначала дорожка языка озвучки, иначе первая ручная.
+      // "Video language": the track matching the audio, else the first manual one.
       const byAudio = defaultAudioLanguage &&
         tracks.find((t) => baseLang(t.languageCode) === baseLang(defaultAudioLanguage));
       return byAudio || tracks.find((t) => !t.kind) || tracks[0];
@@ -53,12 +59,12 @@
     const loose = tracks.filter((t) => baseLang(t.languageCode) === baseLang(lang));
     const pool = exact.length ? exact : loose;
     if (!pool.length) return null;
-    // Ручная дорожка всегда лучше распознанной автоматически.
+    // A manual track always beats an automatically recognised one.
     return pool.find((t) => !t.kind) || pool[0];
   }
 
   /**
-   * Решает, откуда взять текст для каждой строки.
+   * Decides where the text for each line comes from.
    * @returns {{primary:Object, secondary:Object}}
    */
   function buildPlan(info, settings) {
@@ -67,13 +73,13 @@
     const primaryTrack = pickTrack(tracks, settings.primaryLang, defaultAudioLanguage);
     const primary = primaryTrack
       ? { source: 'native', track: primaryTrack, lang: primaryTrack.languageCode }
-      : { source: 'none', reason: 'нет дорожки для первого языка' };
+      : { source: 'none', reason: 'no track for the first language' };
 
     const wanted = settings.secondaryLang;
     let secondary;
 
     if (!wanted || wanted === 'off') {
-      secondary = { source: 'none', reason: 'второй язык выключен' };
+      secondary = { source: 'none', reason: 'second language is off' };
     } else {
       const nativeSecond = pickTrack(tracks, wanted, null);
       const sameAsPrimary = nativeSecond && primaryTrack &&
@@ -82,11 +88,11 @@
       if (nativeSecond && !sameAsPrimary) {
         secondary = { source: 'native', track: nativeSecond, lang: nativeSecond.languageCode };
       } else if (sameAsPrimary) {
-        secondary = { source: 'none', reason: 'видео уже на этом языке' };
+        secondary = { source: 'none', reason: 'the video is already in this language' };
       } else if (!settings.allowTranslation) {
-        secondary = { source: 'none', reason: `нет субтитров на «${DS.languageName(wanted)}»` };
+        secondary = { source: 'none', reason: `no ${DS.languageName(wanted)} subtitles` };
       } else if (!primaryTrack) {
-        secondary = { source: 'none', reason: 'нечего переводить -- у видео нет субтитров' };
+        secondary = { source: 'none', reason: 'nothing to translate — this video has no subtitles' };
       } else {
         const ytCan = primaryTrack.isTranslatable &&
           (!translationLanguages.length ||
@@ -100,7 +106,7 @@
     return { primary, secondary };
   }
 
-  // -------------------------------- перевод -----------------------------------
+  // -------------------------------- translation -------------------------------
 
   function translateTexts(videoId, texts, from, to, settings, onProgress) {
     return new Promise((resolve) => {
@@ -108,7 +114,7 @@
       try {
         port = chrome.runtime.connect({ name: 'ds-translate' });
       } catch (e) {
-        resolve({ ok: false, error: 'расширение перезагружено, обновите страницу' });
+        resolve({ ok: false, error: 'the extension was reloaded, refresh the page' });
         return;
       }
       let settled = false;
@@ -117,9 +123,9 @@
       port.onMessage.addListener((m) => {
         if (m.type === 'progress') onProgress(m.done, m.total);
         else if (m.type === 'provider') onProgress(0, texts.length, m.provider);
-        else if (m.type === 'result') { finish(m); try { port.disconnect(); } catch { /* уже закрыт */ } }
+        else if (m.type === 'result') { finish(m); try { port.disconnect(); } catch { /* already closed */ } }
       });
-      port.onDisconnect.addListener(() => finish({ ok: false, error: 'соединение с воркером прервано' }));
+      port.onDisconnect.addListener(() => finish({ ok: false, error: 'lost connection to the worker' }));
 
       port.postMessage({
         type: 'translate',
@@ -139,7 +145,7 @@
     mymemory: 'MyMemory'
   };
 
-  // ------------------------------- основной цикл ------------------------------
+  // --------------------------------- main loop --------------------------------
 
   let runToken = 0;
   let playerWaits = 0;
@@ -156,7 +162,7 @@
       document.querySelector('.html5-video-player')?.classList.remove('ds-hide-native');
       DS.state.videoId = videoId;
       DS.state.plan = null;
-      setStatus(settings.enabled ? '' : 'Выключено');
+      setStatus(settings.enabled ? '' : 'Off');
       return;
     }
 
@@ -164,8 +170,9 @@
     const video = player?.querySelector('video');
     if (stale()) return;
     if (!player || !video) {
-      // Событие навигации уже отгремело, а плеер ещё не собрался -- ждём его
-      // сами, но не бесконечно, иначе на страницах без видео будет вечный цикл.
+      // The navigation event has already fired but the player is not assembled
+      // yet — wait for it ourselves, though not forever, or pages without a
+      // video would loop endlessly.
       if (playerWaits++ < 5) scheduleRun('player-not-ready');
       return;
     }
@@ -177,7 +184,7 @@
 
     DS.state.videoId = videoId;
     DS.state.busy = true;
-    setStatus('Ищу субтитры…', 'work');
+    setStatus('Looking for subtitles…', 'work');
     DS.log('run', reason, videoId);
 
     const info = await DS.getCaptionInfo(videoId);
@@ -187,7 +194,7 @@
       DS.state.info = null;
       DS.state.plan = null;
       DS.state.busy = false;
-      setStatus('У этого видео нет субтитров', 'error');
+      setStatus('This video has no subtitles', 'error');
       return;
     }
 
@@ -196,10 +203,10 @@
     DS.state.plan = plan;
     emit();
 
-    // --- первая строка ---
+    // --- first line ---
     let primaryCues = [];
     if (plan.primary.source === 'native') {
-      setStatus('Загружаю субтитры…', 'work');
+      setStatus('Loading subtitles…', 'work');
       const r = await DS.fetchCues(videoId, plan.primary.track);
       if (stale()) return;
       if (r.cues) primaryCues = r.cues;
@@ -210,62 +217,85 @@
       }
     }
 
-    let primaryDisplay = primaryCues;
-    let secondaryDisplay = [];
+    // Sentences are needed either way: machine translation works on them, and
+    // `sources` links each sentence back to the cues it was built from.
+    const sentences = DS.mergeIntoSentences(primaryCues);
 
-    // --- вторая строка ---
+    // The display unit, shared by both lines. Nothing changes on screen until
+    // the current unit ends, which is where the synchronisation comes from.
+    let units = settings.groupBySentence
+      ? sentences
+      : primaryCues.map((c) => ({ ...c, sources: [c] }));
+    let secondaryTexts = units.map(() => '');
+
+    // --- second line ---
     const sec = plan.secondary;
 
     if (sec.source === 'native') {
       const r = await DS.fetchCues(videoId, sec.track);
       if (stale()) return;
-      if (r.cues) secondaryDisplay = r.cues;
-      else sec.fallbackNote = fetchErrorText(r.error);
+      if (r.cues) {
+        if (units.length) {
+          // A separate track is an independent transcription: it is matched to
+          // the first line by time, phrase by phrase rather than word by word.
+          secondaryTexts = DS.alignByOverlap(units, r.cues);
+        } else {
+          // The first language has no track at all — the second one then sets
+          // the timeline on its own.
+          units = r.cues.map((c) => ({ start: c.start, end: c.end, text: '', sources: [c] }));
+          secondaryTexts = r.cues.map((c) => c.text);
+        }
+      } else {
+        sec.fallbackNote = fetchErrorText(r.error);
+      }
     }
 
     if (sec.source === 'yt-translate') {
-      setStatus(`Перевожу через YouTube -> ${DS.languageName(sec.lang)}…`, 'work');
+      setStatus(`Translating through YouTube -> ${DS.languageName(sec.lang)}…`, 'work');
       const r = await DS.fetchCues(videoId, sec.track, sec.tlang);
       if (stale()) return;
       if (r.cues) {
-        secondaryDisplay = r.cues;
+        secondaryTexts = DS.alignByStart(units, r.cues);
       } else {
-        // Автоперевод YouTube иногда отдаёт 429 -- уходим на машинный перевод.
-        DS.log('tlang не сработал, переключаюсь на машинный перевод', r.error);
+        // YouTube's own translation sometimes answers 429 — fall back to
+        // machine translation.
+        DS.log('tlang failed, switching to machine translation', r.error);
         sec.source = 'machine';
         sec.from = plan.primary.lang;
-        sec.fallbackNote = 'автоперевод YouTube недоступен';
+        sec.fallbackNote = 'YouTube translation unavailable';
       }
     }
 
     if (sec.source === 'machine') {
       if (!primaryCues.length) {
-        setStatus('Нечего переводить', 'error');
+        setStatus('Nothing to translate', 'error');
       } else {
-        const segments = DS.mergeIntoSentences(primaryCues);
-        const payload = segments.map((s) => s.text);
+        const payload = sentences.map((s) => s.text);
 
-        setStatus(`Перевожу ${payload.length} фраз…`, 'work');
+        setStatus(`Translating ${payload.length} phrases…`, 'work');
         const res = await translateTexts(
           videoId, payload, sec.from, sec.lang, settings,
           (done, total, provider) => {
             if (stale()) return;
             const label = provider ? ` (${PROVIDER_LABEL[provider] || provider})` : '';
-            setStatus(`Перевожу${label}: ${done}/${total}…`, 'work');
+            setStatus(`Translating${label}: ${done}/${total}…`, 'work');
           }
         );
         if (stale()) return;
 
         if (res.ok) {
-          secondaryDisplay = segments.map((s, i) => ({
-            start: s.start,
-            end: s.end,
-            text: res.items[i] || ''
-          })).filter((c) => c.text);
+          // Sentences are translated, but the display unit may be a single cue.
+          // Indexing through the source cues covers both cases: with sentences
+          // shown, one unit gets one translation; with raw cues shown, the
+          // sentence translation stays on screen across all of its cues.
+          const byCue = new Map();
+          sentences.forEach((s, i) => {
+            const translated = res.items[i] || '';
+            for (const c of s.sources) byCue.set(c.start, translated);
+          });
+          secondaryTexts = units.map((u) => byCue.get(u.sources[0].start) || '');
           sec.provider = res.provider;
           sec.cached = res.cached;
-          // Обе строки идут предложениями -- читать заметно удобнее.
-          if (settings.groupBySentence) primaryDisplay = segments;
         } else {
           sec.error = res.error;
         }
@@ -274,56 +304,64 @@
 
     if (stale()) return;
 
-    renderer.setCues('primary', primaryDisplay);
-    renderer.setCues('secondary', secondaryDisplay);
-    player.classList.toggle(
-      'ds-hide-native',
-      settings.hideNative && (primaryDisplay.length > 0 || secondaryDisplay.length > 0)
-    );
+    // An empty translation keeps its segment: dropping it would shift every
+    // segment after it and pull the two lines apart.
+    const segments = units.map((u, i) => ({
+      start: u.start,
+      end: u.end,
+      primary: u.text || '',
+      secondary: secondaryTexts[i] || ''
+    }));
+
+    renderer.setSegments(segments);
+    player.classList.toggle('ds-hide-native', settings.hideNative && segments.length > 0);
 
     DS.state.busy = false;
-    setStatus(summaryText(plan, primaryDisplay, secondaryDisplay));
+    setStatus(summaryText(plan, segments));
   }
 
   function fetchErrorText(error) {
     switch (error) {
-      case 'rate-limit': return 'YouTube временно ограничил запросы. Попробуйте через минуту';
-      case 'empty': return 'YouTube не отдал текст субтитров. Попробуйте перезагрузить страницу';
-      case 'network': return 'Нет связи с YouTube';
-      case 'no-url': return 'Не удалось получить ссылку на субтитры';
-      default: return 'Не удалось загрузить субтитры (' + error + ')';
+      case 'rate-limit': return 'YouTube is rate limiting requests. Try again in a minute';
+      case 'empty': return 'YouTube returned no subtitle text. Try reloading the page';
+      case 'network': return 'No connection to YouTube';
+      case 'no-url': return 'Could not get the subtitle URL';
+      default: return 'Could not load the subtitles (' + error + ')';
     }
   }
 
-  function summaryText(plan, primaryCues, secondaryCues) {
+  function summaryText(plan, segments) {
     const parts = [];
-    if (primaryCues.length) parts.push(DS.languageName(plan.primary.lang));
+    const hasPrimary = segments.some((s) => s.primary);
+    const hasSecondary = segments.some((s) => s.secondary);
+
+    if (hasPrimary) parts.push(DS.languageName(plan.primary.lang));
     const sec = plan.secondary;
-    if (secondaryCues.length) {
+    if (hasSecondary) {
       let tag = DS.languageName(sec.lang);
-      if (sec.source === 'yt-translate') tag += ' (автоперевод YouTube)';
+      if (sec.source === 'yt-translate') tag += ' (YouTube translation)';
       else if (sec.source === 'machine') {
-        tag += ` (${PROVIDER_LABEL[sec.provider] || 'перевод'}${sec.cached ? ', из кэша' : ''})`;
+        tag += ` (${PROVIDER_LABEL[sec.provider] || 'translated'}${sec.cached ? ', cached' : ''})`;
       }
       parts.push(tag);
     }
-    if (!parts.length) return sec.reason || sec.error || 'Субтитры не найдены';
+    if (!parts.length) return sec.reason || sec.error || 'No subtitles found';
     let text = parts.join('  +  ');
-    if (sec.error) text += ` -- вторая строка недоступна: ${sec.error}`;
-    else if (!secondaryCues.length && sec.reason) text += ` -- ${sec.reason}`;
+    if (sec.error) text += ` -- second line unavailable: ${sec.error}`;
+    else if (!hasSecondary && sec.reason) text += ` -- ${sec.reason}`;
     return text;
   }
 
   DS.rerun = (reason) => run(reason || 'manual');
 
-  // ------------------------------- навигация ----------------------------------
+  // -------------------------------- navigation --------------------------------
 
   const scheduleRun = DS.debounce((reason) => run(reason), 350);
 
   function watchNavigation() {
     let lastId = DS.videoIdFromUrl();
 
-    // YouTube -- SPA: обычной перезагрузки страницы между видео не происходит.
+    // YouTube is an SPA: there is no normal page load between videos.
     document.addEventListener('yt-navigate-finish', () => {
       DS.clearCueCache();
       playerWaits = 0;
@@ -331,7 +369,7 @@
     });
     document.addEventListener('yt-player-updated', () => scheduleRun('yt-player-updated'));
 
-    // Страховка на случай, если событие не пришло.
+    // Safety net in case the event never arrives.
     setInterval(() => {
       const id = DS.videoIdFromUrl();
       if (id !== lastId) {
@@ -343,7 +381,7 @@
     }, 1000);
   }
 
-  // ------------------------------- реакция на настройки -----------------------
+  // ---------------------------- reacting to settings --------------------------
 
   const APPEARANCE_KEYS = new Set([
     'fontSize', 'lineGap', 'bottomOffset', 'background',
@@ -365,7 +403,7 @@
     scheduleRun('settings');
   });
 
-  // --------------------------------- старт ------------------------------------
+  // ----------------------------------- start ----------------------------------
 
   function boot() {
     watchNavigation();

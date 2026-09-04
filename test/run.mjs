@@ -1,5 +1,6 @@
-/** Точка входа: node test/run.mjs */
+/** Entry point: node test/run.mjs */
 import './parse.test.mjs';
+import './align.test.mjs';
 import './translate.test.mjs';
 import { runAll } from './harness.mjs';
 

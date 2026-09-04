@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Dual Subtitles for YouTube",
   "version": "1.0.0",
-  "description": "Двойные субтитры на YouTube: два языка одновременно. Если нужной дорожки нет — переводит автоматически и бесплатно.",
+  "description": "Dual subtitles on YouTube: two languages at once. If the track you want is missing, it is translated automatically and for free.",
   "permissions": [
     "storage"
   ],
@@ -37,6 +37,7 @@
         "src/content/util.js",
         "src/common/settings-form.js",
         "src/content/parse.js",
+        "src/content/align.js",
         "src/content/tracks.js",
         "src/content/render.js",
         "src/content/ui.js",
@@ -61,7 +62,7 @@
   ],
   "action": {
     "default_popup": "src/popup/popup.html",
-    "default_title": "Двойные субтитры",
+    "default_title": "Dual subtitles",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -74,7 +75,7 @@
       "suggested_key": {
         "default": "Alt+D"
       },
-      "description": "Включить / выключить двойные субтитры"
+      "description": "Turn dual subtitles on / off"
     }
   },
   "icons": {
