@@ -35,6 +35,9 @@
     { section: 'Appearance' },
     { key: 'fontSize', label: 'Size', type: 'range', min: 60, max: 200, step: 5, suffix: '%' },
     { key: 'bottomOffset', label: 'Offset from bottom', type: 'range', min: 0, max: 40, step: 1, suffix: '%' },
+    { key: 'resetPosition', label: 'Subtitles were dragged', type: 'button', buttonLabel: 'Put back',
+      when: (s) => s.captionX != null || s.captionY != null,
+      action: () => DS.setSettings({ captionX: null, captionY: null }) },
     { key: 'background', label: 'Backdrop', type: 'range', min: 0, max: 100, step: 5, suffix: '%' },
     { key: 'primaryColor', label: 'First language colour', type: 'color' },
     { key: 'secondaryColor', label: 'Second language colour', type: 'color' },
@@ -109,6 +112,14 @@
         lab.appendChild(input);
         lab.appendChild(el('span', null, item.label));
         row.appendChild(lab);
+      } else if (item.type === 'button') {
+        row.appendChild(el('label', null, item.label));
+        input = document.createElement('button');
+        input.type = 'button';
+        input.className = 'ds-btn-secondary';
+        input.textContent = item.buttonLabel;
+        input.addEventListener('click', () => item.action());
+        row.appendChild(input);
       } else {
         row.appendChild(el('label', null, item.label));
         if (item.type === 'lang' || item.type === 'select') {
@@ -135,19 +146,22 @@
         }
       }
 
-      const commit = () => {
-        let value;
-        if (item.type === 'bool') value = input.checked;
-        else if (item.type === 'range') value = Number(input.value);
-        else value = input.value;
-        settings[item.key] = value;
-        if (input._output) input._output.textContent = value + (item.suffix || '');
-        DS.setSettings({ [item.key]: value });
-        applyVisibility();
-      };
+      // A button carries no value: it fires its action and that is all.
+      if (item.type !== 'button') {
+        const commit = () => {
+          let value;
+          if (item.type === 'bool') value = input.checked;
+          else if (item.type === 'range') value = Number(input.value);
+          else value = input.value;
+          settings[item.key] = value;
+          if (input._output) input._output.textContent = value + (item.suffix || '');
+          DS.setSettings({ [item.key]: value });
+          applyVisibility();
+        };
 
-      // Sliders and colours update live, everything else on change.
-      input.addEventListener(item.type === 'range' || item.type === 'color' ? 'input' : 'change', commit);
+        // Sliders and colours update live, everything else on change.
+        input.addEventListener(item.type === 'range' || item.type === 'color' ? 'input' : 'change', commit);
+      }
 
       root.appendChild(row);
       rows.push({ item, node: row, input });
@@ -162,7 +176,7 @@
     async function refresh() {
       settings = await DS.getSettings();
       for (const r of rows) {
-        if (!r.input) continue;
+        if (!r.input || r.item.type === 'button') continue;
         const { item, input } = r;
         const value = settings[item.key];
         if (item.type === 'bool') input.checked = !!value;
@@ -174,6 +188,17 @@
       applyVisibility();
     }
 
-    return { refresh };
+    /**
+     * Re-reads the settings and updates only which rows are visible, leaving the
+     * field values alone. Needed when a setting changed from outside — the
+     * subtitles were dragged, say — while the form is open: rebuilding it in full
+     * would reset a dropdown right under the cursor.
+     */
+    async function syncVisibility() {
+      settings = await DS.getSettings();
+      applyVisibility();
+    }
+
+    return { refresh, syncVisibility };
   };
 })();

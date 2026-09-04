@@ -158,8 +158,22 @@ video's track list is visible); the extension popup sets the defaults.
 * pause when the mouse is over the subtitles (handy when learning a language);
 * show whole sentences instead of raw cues.
 
-The subtitle text can always be selected with the mouse — a click on it still
-works as a click on the video (pause/play).
+### Moving the subtitles
+
+The block is dragged with the mouse, the way YouTube's own subtitles are. The
+position is stored as fractions of the player size, so it survives a window
+resize and the jump into fullscreen, and a block placed by hand is no longer
+lifted when the control bar appears — the spot was chosen deliberately.
+
+A drag only begins once the pointer has travelled a few pixels. Everything a
+plain press used to do still works: a single click pauses or resumes the video,
+a double click selects a word and a triple click the whole line, so looking up
+an unfamiliar word is still one gesture away.
+
+Dragging and the *offset from the bottom* slider steer the same thing, so moving
+the slider drops a hand-picked position — otherwise the slider would look
+broken. A **Put back** button appears in the panel once the subtitles have been
+moved.
 
 ## Tests
 
@@ -167,11 +181,12 @@ works as a click on the video (pause/play).
 npm test
 ```
 
-41 tests with no dependencies: `json3` parsing against fixtures shaped like a
+51 tests with no dependencies: `json3` parsing against fixtures shaped like a
 real response; sentence merging; active-cue lookup (checked against a full
 scan); alignment of the second language onto the first timeline, including the
-case where the translated track is missing a cue; translation batching, provider
-order and the concurrency limiter.
+case where the translated track is missing a cue; the geometry that keeps a
+dragged block inside the player; translation batching, provider order and the
+concurrency limiter.
 
 ## Limitations
 

@@ -25,6 +25,11 @@
     fontSize: 100,        // % of the base size
     lineGap: 4,           // px between the lines
     bottomOffset: 8,      // % of the player height
+    // Where the block was dragged to, as fractions of the player size (X is the
+    // centre of the block, Y its distance from the bottom). null means it was
+    // never dragged and bottomOffset plus centring decide the position.
+    captionX: null,
+    captionY: null,
     background: 55,       // backdrop opacity, %
     primaryColor: '#ffffff',
     secondaryColor: '#7fd1ff',

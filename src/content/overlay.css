@@ -25,10 +25,31 @@
 
 .ds-overlay--hidden { display: none; }
 
+/* A position set by dragging. The container shrinks to its content and is
+   centred on the point it was dragged to. */
+.ds-overlay--custom {
+  left: var(--ds-x, 50%);
+  right: auto;
+  bottom: var(--ds-y, 8%);
+  width: max-content;
+  max-width: 88%;
+  transform: translateX(-50%);
+}
+
+/* Subtitles placed by hand stay where they were put: the control bar does not
+   push them around, because the user already chose the spot. */
+.html5-video-player:not(.ytp-autohide) .ds-overlay--custom {
+  bottom: var(--ds-y, 8%);
+}
+
+.ds-overlay--dragging { transition: none; }
+
 .ds-line {
   display: none;
   max-width: 88%;
 }
+
+.ds-overlay--custom .ds-line { max-width: 100%; }
 
 .ds-line--visible { display: block; }
 
@@ -48,10 +69,21 @@
   white-space: pre-wrap;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.85);
 
-  /* The text must be selectable — that is half the point of dual subtitles. */
   pointer-events: auto;
+
+  /* The block is dragged with the mouse, like YouTube's own subtitles, and the
+     cursor says so. Selecting text still works through a double click for a word
+     and a triple click for the whole line — neither needs a drag, so neither
+     competes with moving the block. */
+  cursor: move;
   user-select: text;
   -webkit-user-select: text;
+}
+
+.ds-overlay--dragging .ds-text {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .ds-line--primary .ds-text { color: var(--ds-primary-color, #fff); }
@@ -243,3 +275,15 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+.ds-btn-secondary {
+  padding: 4px 10px;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #eee;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ds-btn-secondary:hover { background: #3a3a3a; border-color: #777; }

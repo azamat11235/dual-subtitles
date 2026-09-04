@@ -254,6 +254,11 @@
         if (panel && !panel.hidden) form?.refresh();
       }
     });
-    DS.onSettingsChange(() => syncButton());
+    DS.onSettingsChange(() => {
+      syncButton();
+      // The subtitles may have just been dragged, which is what makes the
+      // "put it back" button appear.
+      if (panel && !panel.hidden) form?.syncVisibility();
+    });
   };
 })();
