@@ -145,6 +145,37 @@
 
   // ----------------------------------- button ---------------------------------
 
+  let sizeObserver = null;
+
+  /**
+   * Takes the box of a neighbouring control instead of assuming one.
+   *
+   * The classic control bar sizes its buttons through `.ytp-button`, which our
+   * button carries; the rounded bar does not, and there the button came out
+   * oversized and off the baseline. Measuring the neighbour works on both, and
+   * on whatever YouTube ships next.
+   */
+  function applyNeighbourSize(neighbour) {
+    if (!button || !neighbour) return;
+    const box = neighbour.getBoundingClientRect();
+    if (!box.width || !box.height) return; // bar hidden — the observer will call back
+    button.style.width = `${box.width}px`;
+    button.style.height = `${box.height}px`;
+  }
+
+  function matchNeighbourSize(neighbour) {
+    sizeObserver?.disconnect();
+    sizeObserver = null;
+    if (!neighbour) return;
+    applyNeighbourSize(neighbour);
+    // Fullscreen and window resizes change the neighbour's box without ever
+    // removing our button, so nothing else would re-run the measurement. Only
+    // the measuring half is subscribed: re-subscribing from the callback would
+    // loop, since observing fires an initial notification of its own.
+    sizeObserver = new ResizeObserver(() => applyNeighbourSize(neighbour));
+    sizeObserver.observe(neighbour);
+  }
+
   function ensureButton() {
     const controls = document.querySelector('.ytp-right-controls');
     if (!controls) return;
@@ -161,13 +192,15 @@
       togglePanel();
     });
 
-    // querySelector reaches any descendant, but insertBefore only accepts a
-    // direct child of `controls` — and on some player layouts YouTube wraps the
-    // right-hand buttons in a container. Walk back up to the child that holds
-    // the settings button; a bare settingsBtn would throw NotFoundError there.
-    let anchor = controls.querySelector('.ytp-settings-button');
-    while (anchor && anchor.parentNode !== controls) anchor = anchor.parentNode;
-    controls.insertBefore(button, anchor || controls.firstChild);
+    // Sit next to the settings button, inside whatever holds it. Inserting into
+    // `controls` itself is wrong on the rounded control bar, where the buttons
+    // live in an inner container: the button would land outside the pill. It is
+    // also what insertBefore demands — the reference node has to be a child of
+    // the node the call is made on, not just a descendant.
+    const settingsBtn = controls.querySelector('.ytp-settings-button');
+    const host = settingsBtn ? settingsBtn.parentNode : controls;
+    host.insertBefore(button, settingsBtn || host.firstChild);
+    matchNeighbourSize(settingsBtn);
 
     const player = document.querySelector('#movie_player, .html5-video-player');
     if (player && (!panel || !player.contains(panel))) {

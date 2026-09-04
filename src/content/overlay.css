@@ -67,7 +67,18 @@
 
 /* ─────────────────────────── Button in the player bar ──────────────────────── */
 
-.ds-btn { position: relative; }
+/* The box comes from a neighbouring control, measured in ui.js — the rounded
+   control bar does not size buttons through .ytp-button. Centre the glyph
+   inside whatever box that turns out to be. */
+.ds-btn {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  vertical-align: middle;
+}
 
 .ds-btn svg { width: 100%; height: 100%; }
 
