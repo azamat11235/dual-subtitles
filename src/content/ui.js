@@ -161,8 +161,13 @@
       togglePanel();
     });
 
-    const settingsBtn = controls.querySelector('.ytp-settings-button');
-    controls.insertBefore(button, settingsBtn || controls.firstChild);
+    // querySelector reaches any descendant, but insertBefore only accepts a
+    // direct child of `controls` — and on some player layouts YouTube wraps the
+    // right-hand buttons in a container. Walk back up to the child that holds
+    // the settings button; a bare settingsBtn would throw NotFoundError there.
+    let anchor = controls.querySelector('.ytp-settings-button');
+    while (anchor && anchor.parentNode !== controls) anchor = anchor.parentNode;
+    controls.insertBefore(button, anchor || controls.firstChild);
 
     const player = document.querySelector('#movie_player, .html5-video-player');
     if (player && (!panel || !player.contains(panel))) {
