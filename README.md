@@ -45,6 +45,20 @@ and fairly strict) or when a track is marked as not translatable.
 Translations are cached in `chrome.storage.local` per video and language pair,
 so watching something again costs no requests at all.
 
+### Which track counts as "the video's language"
+
+`videoDetails.defaultAudioLanguage` answers this when it is there, and on an
+auto-dubbed video it is not — precisely where a guess costs the most, since such
+a video carries one automatic caption track per dub, twenty of them, sorted
+alphabetically by language name. Taking the first of those put Arabic on an
+English video.
+
+YouTube does say which one is the original: every entry of `audioTracks` points
+its `defaultCaptionTrackIndex` at it. Failing both signals, a lone automatic
+track names the spoken language, because YouTube only ever recognises speech in
+the language actually spoken; several of them mean dubs, and then it says
+nothing and the choice falls back to the first manual track.
+
 ## Why the two lines stay in step
 
 Both lines are driven by **one timeline**. A segment holds the text of both
@@ -118,6 +132,7 @@ src/
     util.js                 settings, small shared helpers
     parse.js                json3 parsing, sentence merging, active-cue lookup
     align.js                mapping the second language onto the first timeline
+    select.js               which track feeds which line
     tracks.js               pot-URL interception, track list, subtitle fetching
     render.js               the overlay and the per-frame segment lookup
     ui.js                   the player button and the settings panel
@@ -181,12 +196,13 @@ moved.
 npm test
 ```
 
-51 tests with no dependencies: `json3` parsing against fixtures shaped like a
+63 tests with no dependencies: `json3` parsing against fixtures shaped like a
 real response; sentence merging; active-cue lookup (checked against a full
 scan); alignment of the second language onto the first timeline, including the
-case where the translated track is missing a cue; the geometry that keeps a
-dragged block inside the player; translation batching, provider order and the
-concurrency limiter.
+case where the translated track is missing a cue; track selection, built on the
+real track list of an auto-dubbed video; the geometry that keeps a dragged block
+inside the player; translation batching, provider order and the concurrency
+limiter.
 
 ## Limitations
 
