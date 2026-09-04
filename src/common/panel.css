@@ -57,8 +57,11 @@
 /* .ytp-menuitem:not([aria-disabled="true"]):hover, matched. */
 .ds-row:hover { background: rgba(255, 255, 255, 0.1); }
 
+/* The label takes the slack, so everything after it is pushed against the right
+   edge as one group. Without this the row spread its three parts evenly and the
+   sliders floated at a different offset in every row. */
 .ds-row > label {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   color: #eee;
 }
