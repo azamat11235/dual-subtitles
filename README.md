@@ -1,148 +1,188 @@
-# Двойные субтитры для YouTube
+# Dual Subtitles for YouTube
 
-Расширение для Chrome и других браузеров на Chromium (Dia, Edge, Brave, Arc):
-показывает на видео **две дорожки субтитров одновременно** — например,
-английскую и русскую. Если русских субтитров у видео нет, расширение делает их
-само: бесплатно и без ключей.
+An extension for Chrome and other Chromium browsers (Dia, Edge, Brave, Arc): it
+shows **two subtitle tracks at once** on a video — English and Spanish, say. If
+the video has no track in the second language, the extension produces one
+itself: free, no keys required.
 
 ```
    I was a government major, which means I had to write a lot of papers.
-   В университете я изучал государственное управление, а значит, мне
-   приходилось писать много работ.
+   Estudie ciencias politicas, lo que significa que tuve que escribir
+   muchos trabajos.
 ```
 
-## Установка
+## Installing
 
-1. Открыть `chrome://extensions` (в Dia — `dia://extensions`).
-2. Включить **Режим разработчика**.
-3. Нажать **Загрузить распакованное расширение** и выбрать папку с проектом.
+1. Open `chrome://extensions` (in Dia — `dia://extensions`).
+2. Turn on **Developer mode**.
+3. Click **Load unpacked** and pick the project folder.
 
-Готово: на странице любого видео в панели плеера появится кнопка с двумя
-строками. Быстрый выключатель — `Alt+D`.
+That is all: on any video page a two-line button appears in the player controls.
+The quick toggle is `Alt+D`.
 
-## Как выбирается второй язык
+## How the second language is chosen
 
-Главный вопрос — что делать, когда нужной дорожки у видео просто нет.
-Расширение идёт по цепочке сверху вниз и останавливается на первом, что сработало:
+The real question is what to do when the video simply has no track in the
+language you want. The extension walks down this chain and stops at the first
+thing that works:
 
-| № | Источник | Стоимость | Качество |
-|---|----------|-----------|----------|
-| 1 | Готовая дорожка нужного языка (ручная предпочтительнее автоматической) | бесплатно | лучшее |
-| 2 | **Автоперевод YouTube** — тот же запрос с параметром `tlang` | бесплатно, **один** запрос на всё видео | хорошее |
-| 3 | Google Переводчик (бесплатный неофициальный эндпоинт), пачками | бесплатно | хорошее |
-| 4 | DeepL — если вписать бесплатный ключ (500 000 знаков в месяц) | бесплатно с ключом | лучшее из машинных |
-| 5 | MyMemory | бесплатно, малая суточная квота | среднее |
+| # | Source | Cost | Quality |
+|---|--------|------|---------|
+| 1 | An existing track in that language (manual preferred over automatic) | free | best |
+| 2 | **YouTube's own translation** — the same request with a `tlang` parameter | free, **one** request for the whole video | good |
+| 3 | Google Translate (free unofficial endpoint), in batches | free | good |
+| 4 | DeepL — if you paste in a free key (500,000 characters a month) | free with a key | best of the machine ones |
+| 5 | MyMemory | free, small daily quota | fair |
 
-Ключевая находка: у YouTube **уже есть** машинный перевод субтитров на 150+
-языков — тот самый пункт «Перевести» в меню плеера. Он включается одним
-параметром `tlang` в запросе за субтитрами, отдаёт готовый текст с исходными
-таймингами и не требует ни ключей, ни сторонних сервисов. Это самый быстрый и
-надёжный путь, поэтому он стоит первым. Остальные провайдеры — страховка на
-случай, когда YouTube отвечает `429` (у него отдельная и довольно строгая
-квота на перевод) или когда дорожка помечена как непереводимая.
+The key find: YouTube **already has** machine translation of subtitles into 150+
+languages — the "Auto-translate" item in the player menu. It is switched on by a
+single `tlang` parameter on the subtitle request, returns finished text with the
+original timings, and needs neither keys nor third-party services. That is the
+fastest and most reliable path, which is why it comes first. The other providers
+are insurance for when YouTube answers `429` (its translation quota is separate
+and fairly strict) or when a track is marked as not translatable.
 
-Переводы кэшируются в `chrome.storage.local` по видео и паре языков, поэтому
-повторный просмотр не тратит ни одного запроса.
+Translations are cached in `chrome.storage.local` per video and language pair,
+so watching something again costs no requests at all.
 
-### Почему текст сначала склеивается в предложения
+## Why the two lines stay in step
 
-Автоматические субтитры нарезаны на обрывки по 3–4 слова: «which means I had
-to», «write a lot of». Переводить их поштучно бессмысленно — получается каша.
-Поэтому перед переводом реплики склеиваются в куски по смыслу (до знака конца
-предложения, паузы, 120 символов или 7 секунд), переводится уже целый кусок, а
-на экран он выводится на всё своё время. По желанию (`Показывать оригинал
-предложениями при переводе`) так же группируется и первая строка — тогда обе
-строки меняются синхронно, и читать заметно легче.
+Both lines are driven by **one timeline**. A segment holds the text of both
+languages at once:
 
-## Как это устроено внутри
-
-Самое неочевидное место — как вообще получить текст субтитров.
-
-Наивный способ (взять `captionTracks[].baseUrl` из `ytInitialPlayerResponse` и
-скачать) **сегодня не работает**: YouTube отвечает `HTTP 200` с пустым телом,
-потому что в запросе нет токена `pot` (proof-of-origin), а в `baseUrl` его нет.
-Проверено на живых данных:
-
-```
-baseUrl + &fmt=json3                  -> 200, 0 байт
-URL, запрошенный самим плеером        -> 200, 315 реплик
+```js
+{ start: 12559, end: 17039, primary: 'I was a government major', secondary: 'Estudie ciencias politicas' }
 ```
 
-Поэтому расширение подсматривает URL, который запрашивает **сам плеер** — в нём
-`pot` есть. Видно его прямо из isolated world через Resource Timing API, без
-хуков на `fetch`. Дальше выясняется приятное: параметры `lang`, `name`, `kind`
-и `tlang` не входят в подпись (`sparams`), так что одним перехваченным URL можно
-скачать **любую** дорожку и любой автоперевод. Если плеер субтитры ещё не
-грузил, расширение на мгновение включает их через API плеера, ловит запрос и
-возвращает всё как было.
+Every frame looks up exactly one segment and fills both lines from it, so the
+lines cannot switch at different moments — the synchronisation is a property of
+the data, not something the rendering has to keep arranging.
+
+The timing of the first line defines the segments; the second line is mapped
+onto them by `src/content/align.js`:
+
+* **YouTube's translation** keeps the original timings, so cues are matched by
+  start time. Matching by index would look simpler and be wrong: YouTube drops
+  the odd cue from a translated track (an empty translation, a `[Music]` line),
+  and from there on every index is off by one.
+* **A separate track in another language** is an independent transcription with
+  its own cue boundaries. It is matched by time overlap: a cue goes into every
+  segment it meaningfully covers, and a cue that clears the bar nowhere still
+  fills the segment it overlaps most rather than leaving a blank. The result is
+  phrase-by-phrase correspondence, not word-for-word — a foreign track is not a
+  translation of the first line, and it is not treated as one.
+* **Machine translation** works on sentences and is mapped back through the cues
+  each sentence was built from, so it fits either display granularity.
+
+A segment whose translation came back empty keeps its place with an empty
+string. Dropping it would shift every segment after it and pull the two lines
+apart — exactly the failure this design exists to prevent.
+
+### Why the text is merged into sentences first
+
+Automatic subtitles are cut into three- or four-word fragments: "which means I
+had to", "write a lot of". Translating those one by one is pointless — the
+result is mush. So before translating, the cues are merged into meaningful
+chunks (up to an end-of-sentence mark, a pause, 120 characters or 7 seconds),
+the whole chunk is translated, and it stays on screen for its entire span. The
+same chunks are the display unit for both lines; turning **Show whole
+sentences** off falls back to raw cues, where the second line simply holds the
+sentence translation across the cues it covers.
+
+## How it works inside
+
+The least obvious part is how to get the subtitle text at all.
+
+The naive way — take `captionTracks[].baseUrl` from `ytInitialPlayerResponse`
+and download it — **does not work today**: YouTube answers `HTTP 200` with an
+empty body, because the request carries no `pot` (proof-of-origin) token and
+`baseUrl` has none. Verified against live data:
+
+```
+baseUrl + &fmt=json3                  -> 200, 0 bytes
+the URL the player requests itself    -> 200, 315 cues
+```
+
+So the extension watches the URL **the player itself** requests — that one has a
+`pot`. It is visible straight from the isolated world through the Resource
+Timing API, with no hooks on `fetch`. Then comes the pleasant part: the `lang`,
+`name`, `kind` and `tlang` parameters are not part of the signature (`sparams`),
+so one intercepted URL can fetch **any** track and any translation. If the
+player has not loaded subtitles yet, the extension switches them on for a
+moment through the player API, catches the request and puts everything back.
 
 ```
 src/
-  page/inject.js            main world: API плеера и playerResponse
+  page/inject.js            main world: player API and playerResponse
   content/
-    util.js                 настройки, общие мелочи
-    parse.js                разбор json3, склейка в предложения, поиск реплики
-    tracks.js               перехват pot-URL, список дорожек, загрузка субтитров
-    render.js               оверлей и синхронизация по времени
-    ui.js                   кнопка в плеере и панель настроек
-    main.js                 оркестрация: выбор языков и подстановка перевода
+    util.js                 settings, small shared helpers
+    parse.js                json3 parsing, sentence merging, active-cue lookup
+    align.js                mapping the second language onto the first timeline
+    tracks.js               pot-URL interception, track list, subtitle fetching
+    render.js               the overlay and the per-frame segment lookup
+    ui.js                   the player button and the settings panel
+    main.js                 orchestration: language choice and segment building
     overlay.css
-  common/settings-form.js   форма настроек (общая для панели и попапа)
+  common/settings-form.js   settings form (shared by the panel and the popup)
   background/
-    service-worker.js       провайдеры перевода, батчинг, кэш
-  popup/                    настройки по умолчанию
+    service-worker.js       translation providers, batching, cache
+  popup/                    default settings
 ```
 
-Несколько решений, которые стоит знать при доработке:
+A few decisions worth knowing about before changing anything:
 
-* **Две дорожки независимы.** Каждая строка ищет свою активную реплику по
-  времени. Так одинаково работают и две родные дорожки с разным таймингом, и
-  машинный перевод, склеенный по предложениям.
-* **Перекрытия подрезаются.** В `json3` длительности соседних событий
-  накладываются друг на друга, поэтому конец реплики обрезается началом
-  следующей — иначе на экране висели бы две реплики разом.
-* **Служебные события выбрасываются.** У авторубрик ровно половина событий —
-  это `aAppend: 1` с одним переводом строки, артефакт «бегущей строки».
-  Проверено на реальном видео: их фильтрация не теряет ни одного символа текста
-  (670 событий → 335 реплик, 0 потерянных символов).
-* **Батчинг перевода проверяет сам себя.** Google не гарантирует, что сохранит
-  разбиение по `\n`. Если число строк в ответе не совпало с числом отправленных,
-  пачка делится пополам и переводится заново — вплоть до одной строки, где
-  расхождение невозможно. Перевод никогда не уезжает к чужой реплике.
-* **Во время рекламы оверлей прячется** — `currentTime` в этот момент относится
-  к рекламному ролику, а не к видео.
+* **One timeline, two fields.** The second line is always mapped onto the
+  segments of the first. There is no second independent cue list to drift.
+* **Overlaps are trimmed.** In `json3` the durations of neighbouring events
+  overlap, so a cue's end is cut at the start of the next one — otherwise two
+  cues would hang on screen at once.
+* **Service events are dropped.** On automatic tracks exactly half the events
+  are `aAppend: 1` carrying a single line break, an artefact of the rolling
+  caption. Verified on a real video: filtering them loses no text at all
+  (670 events → 335 cues, 0 characters lost).
+* **Translation batching verifies itself.** Google does not guarantee it will
+  keep the `\n` split. If the number of lines in the answer does not match the
+  number sent, the batch is halved and translated again — down to a single line,
+  where a mismatch is impossible. A translation never ends up on the wrong cue.
+* **The overlay hides during ads** — `currentTime` then belongs to the ad clip,
+  not to the video.
 
-## Настройки
+## Settings
 
-Панель открывается кнопкой в плеере (там же виден список дорожек конкретного
-видео); попап расширения задаёт значения по умолчанию.
+The panel opens from the button in the player (that is also where the current
+video's track list is visible); the extension popup sets the defaults.
 
-* языки первой и второй строки, переводчик, ключ DeepL;
-* размер, отступ снизу, плотность подложки, цвета, порядок строк;
-* прятать родные субтитры YouTube;
-* пауза при наведении мыши на субтитры (удобно при изучении языка);
-* группировать оригинал предложениями при переводе.
+* languages of the first and second line, translator, DeepL key;
+* size, offset from the bottom, backdrop opacity, colours, line order;
+* hide YouTube's own subtitles;
+* pause when the mouse is over the subtitles (handy when learning a language);
+* show whole sentences instead of raw cues.
 
-Текст субтитров всегда можно выделить мышью — клик по нему при этом работает
-как клик по видео (пауза/воспроизведение).
+The subtitle text can always be selected with the mouse — a click on it still
+works as a click on the video (pause/play).
 
-## Тесты
+## Tests
 
 ```
 npm test
 ```
 
-28 тестов без зависимостей: разбор `json3` на фикстурах, повторяющих форму
-настоящего ответа; склейка в предложения; поиск активной реплики (сверяется с
-полным перебором); батчинг перевода, порядок провайдеров и ограничитель
-параллелизма.
+41 tests with no dependencies: `json3` parsing against fixtures shaped like a
+real response; sentence merging; active-cue lookup (checked against a full
+scan); alignment of the second language onto the first timeline, including the
+case where the translated track is missing a cue; translation batching, provider
+order and the concurrency limiter.
 
-## Ограничения
+## Limitations
 
-* Если у видео нет вообще никаких субтитров (даже автоматических), взять текст
-  неоткуда — распознавание речи в браузере в задачу не входит.
-* Бесплатные эндпоинты перевода могут отвечать `429`. Расширение повторяет
-  запрос с нарастающей паузой и переключается на следующего провайдера; для
-  стабильного результата на длинных видео стоит вписать бесплатный ключ DeepL.
-* Поддерживается страница просмотра (`/watch`); Shorts и встроенные плееры
-  специально не тестировались.
+* If a video has no subtitles at all (not even automatic ones), there is nothing
+  to work from — speech recognition in the browser is out of scope.
+* Free translation endpoints can answer `429`. The extension retries with a
+  growing pause and moves on to the next provider; for a steady result on long
+  videos it is worth pasting in a free DeepL key.
+* A track in another language is aligned to the first line by time, so it is a
+  phrase-level match, not a word-for-word translation. For strict
+  correspondence, set the second language to one the video has no track in — it
+  is then translated from the first line.
+* The watch page (`/watch`) is supported; Shorts and embedded players were not
+  specifically tested.

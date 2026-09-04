@@ -1,21 +1,22 @@
 /**
- * Фоновый воркер: машинный перевод и кэш.
+ * Background worker: machine translation and the cache.
  *
- * Перевод живёт здесь, а не в content script, по двум причинам: кросс-доменные
- * запросы разрешены host_permissions расширения, и результат кэшируется один раз
- * на все вкладки.
+ * Translation lives here rather than in the content script for two reasons:
+ * cross-origin requests are allowed by the extension's host_permissions, and the
+ * result is cached once for every tab.
  *
- * Порядок провайдеров подобран так, чтобы всё работало бесплатно и без ключей:
- *   1. YouTube tlang  -- делается в content script, сюда не попадает (0 запросов)
- *   2. google         -- бесплатный неофициальный эндпоинт, батчами
- *   3. deepl          -- если пользователь вписал бесплатный ключ (лучшее качество)
- *   4. mymemory       -- маленькая суточная квота, самый последний рубеж
+ * The provider order is chosen so that everything works for free and without
+ * keys:
+ *   1. YouTube tlang  -- done in the content script, never reaches here (0 requests)
+ *   2. google         -- free unofficial endpoint, in batches
+ *   3. deepl          -- if the user entered a free key (best quality)
+ *   4. mymemory       -- small daily quota, the last line of defence
  */
 
 const CACHE_PREFIX = 'mt:';
 const CACHE_LIMIT = 120;
 
-// --------------------------------- утилиты ----------------------------------
+// --------------------------------- helpers ----------------------------------
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -33,7 +34,7 @@ class HttpError extends Error {
   constructor(status) { super('HTTP ' + status); this.status = status; }
 }
 
-/** Ограниченный параллелизм: аккуратнее к бесплатным эндпоинтам. */
+/** Bounded concurrency: be gentle with the free endpoints. */
 export async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
   let next = 0;
@@ -48,7 +49,7 @@ export async function mapLimit(items, limit, fn) {
   return out;
 }
 
-/** Повтор с экспоненциальной паузой -- 429 у бесплатных API дело обычное. */
+/** Retry with exponential backoff -- a 429 from a free API is routine. */
 async function withRetry(fn, tries = 3) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
@@ -58,13 +59,13 @@ async function withRetry(fn, tries = 3) {
     } catch (e) {
       lastErr = e;
       const status = e instanceof HttpError ? e.status : 0;
-      if (status && status !== 429 && status < 500) throw e; // 400/403 повтором не лечится
+      if (status && status !== 429 && status < 500) throw e; // 400/403 will not heal
     }
   }
   throw lastErr;
 }
 
-/** Режем список строк на пачки не длиннее maxChars символов. */
+/** Splits a list of strings into batches no longer than maxChars characters. */
 export function chunkByChars(texts, maxChars) {
   const chunks = [];
   let cur = [];
@@ -79,7 +80,7 @@ export function chunkByChars(texts, maxChars) {
   return chunks;
 }
 
-// ---------------------------- провайдер: Google -----------------------------
+// ---------------------------- provider: Google ------------------------------
 
 async function gtxTranslate(text, from, to) {
   const body = new URLSearchParams({
@@ -96,22 +97,22 @@ async function gtxTranslate(text, from, to) {
   });
   if (!res.ok) throw new HttpError(res.status);
   const raw = await res.text();
-  if (/^\s*</.test(raw)) throw new HttpError(429); // страница "Sorry..." вместо JSON
+  if (/^\s*</.test(raw)) throw new HttpError(429); // a "Sorry..." page instead of JSON
   const data = JSON.parse(raw);
   if (!Array.isArray(data) || !Array.isArray(data[0])) throw new Error('unexpected shape');
   return data[0].map((x) => (x && x[0]) || '').join('');
 }
 
 /**
- * Переводит пачку строк одним запросом, склеив их переводами строк.
+ * Translates a batch of strings in one request, joined by newlines.
  *
- * Google почти всегда сохраняет разбиение по \n, но не гарантирует его. Поэтому
- * ответ проверяется по числу строк: если оно не совпало, пачка делится пополам
- * и переводится заново -- в пределе до одной строки, где расхождение невозможно.
- * Так строка перевода никогда не уезжает к чужой реплике.
+ * Google almost always keeps the \n split, but does not guarantee it. So the
+ * answer is checked by line count: if it does not match, the batch is halved and
+ * translated again -- down to a single line, where a mismatch is impossible.
+ * That way a translated line never ends up attached to the wrong cue.
  *
  * @param {string[]} texts
- * @param {(joined:string)=>Promise<string>} translateJoined перевод склеенного текста
+ * @param {(joined:string)=>Promise<string>} translateJoined translates the joined text
  */
 export async function batchWithVerification(texts, translateJoined) {
   if (!texts.length) return [];
@@ -138,10 +139,10 @@ async function providerGoogle(texts, from, to, onProgress) {
   return results.flat();
 }
 
-// ----------------------------- провайдер: DeepL -----------------------------
+// ----------------------------- provider: DeepL ------------------------------
 
 async function providerDeepl(texts, from, to, onProgress, key) {
-  if (!key) throw new Error('нет ключа DeepL');
+  if (!key) throw new Error('no DeepL key');
   const host = key.trim().endsWith(':fx') ? 'https://api-free.deepl.com' : 'https://api.deepl.com';
   const chunks = [];
   for (let i = 0; i < texts.length; i += 45) chunks.push(texts.slice(i, i + 45));
@@ -169,11 +170,11 @@ async function providerDeepl(texts, from, to, onProgress, key) {
   return results.flat();
 }
 
-// --------------------------- провайдер: MyMemory ----------------------------
+// --------------------------- provider: MyMemory -----------------------------
 
 async function providerMyMemory(texts, from, to, onProgress) {
-  // Квота у анонимного доступа маленькая, поэтому это самый последний вариант
-  // и переводим построчно -- зато без риска рассинхрона.
+  // The anonymous quota is tiny, so this is the very last resort and the lines
+  // go one by one -- slow, but nothing can end up on the wrong cue.
   let done = 0;
   return mapLimit(texts, 2, async (text) => {
     try {
@@ -200,7 +201,7 @@ const PROVIDERS = {
   mymemory: providerMyMemory
 };
 
-/** Порядок попыток: сначала выбранный, потом остальные бесплатные. */
+/** Order of attempts: the chosen one first, then the other free ones. */
 export function providerChain(preferred, hasKey) {
   const chain = [];
   const add = (p) => {
@@ -213,12 +214,12 @@ export function providerChain(preferred, hasKey) {
   return chain;
 }
 
-// ----------------------------------- кэш ------------------------------------
+// ---------------------------------- cache -----------------------------------
 
 /**
- * Список ключей кэша. getKeys() отдаёт только имена (Chrome 130+); на старых
- * сборках приходится читать всё хранилище -- а это мегабайты субтитров, поэтому
- * пользуемся быстрым путём, когда он есть.
+ * The cache keys. getKeys() returns names only (Chrome 130+); on older builds
+ * the whole storage has to be read -- megabytes of subtitles -- so take the fast
+ * path whenever it exists.
  */
 async function cacheKeys() {
   if (typeof chrome.storage.local.getKeys === 'function') {
@@ -243,13 +244,13 @@ async function cachePut(key, hash, items, provider) {
 
   const keys = await cacheKeys();
   if (keys.length <= CACHE_LIMIT) return;
-  // Содержимое читаем только когда действительно пора вытеснять.
+  // Read the contents only when something really has to be evicted.
   const entries = await chrome.storage.local.get(keys);
   keys.sort((a, b) => (entries[a]?.t || 0) - (entries[b]?.t || 0));
   await chrome.storage.local.remove(keys.slice(0, keys.length - CACHE_LIMIT));
 }
 
-// ------------------------------ обработка запроса ---------------------------
+// ------------------------------ request handling ----------------------------
 
 async function translate(req, post) {
   const { texts, from, to, provider = 'google', deeplKey = '', videoId = '' } = req;
@@ -280,7 +281,7 @@ async function translate(req, post) {
         deeplKey
       );
       const filled = items.filter((s) => s && s.trim()).length;
-      if (filled < texts.length * 0.5) throw new Error('слишком много пустых переводов');
+      if (filled < texts.length * 0.5) throw new Error('too many empty translations');
       const normalized = texts.map((_, i) => (items[i] || '').trim());
       await cachePut(key, hash, normalized, name);
       return { ok: true, items: normalized, provider: name };
@@ -288,7 +289,7 @@ async function translate(req, post) {
       errors.push(`${name}: ${e.message}`);
     }
   }
-  return { ok: false, error: errors.join('; ') || 'перевод не удался' };
+  return { ok: false, error: errors.join('; ') || 'translation failed' };
 }
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -296,7 +297,7 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener(async (msg) => {
     if (msg?.type !== 'translate') return;
     const post = (m) => {
-      try { port.postMessage(m); } catch { /* порт уже закрыт */ }
+      try { port.postMessage(m); } catch { /* port already closed */ }
     };
     try {
       const result = await translate(msg, post);
@@ -320,7 +321,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-/** Alt+D -- быстрый выключатель. */
+/** Alt+D -- the quick toggle. */
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== 'toggle-dual-subs') return;
   const { enabled = true } = await chrome.storage.sync.get({ enabled: true });

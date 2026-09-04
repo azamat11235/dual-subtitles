@@ -33,7 +33,7 @@ body {
 
 .hint b { color: #ccc; font-weight: 500; }
 
-/* Те же классы, что и у панели внутри плеера, -- форма строится одним кодом. */
+/* The same classes as the in-player panel -- one piece of code builds the form. */
 
 .ds-row {
   display: flex;

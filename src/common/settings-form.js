@@ -1,49 +1,49 @@
 /**
- * Конструктор формы настроек. Одна и та же форма показывается в двух местах:
- * в панели внутри плеера (где известен список дорожек конкретного видео)
- * и в попапе расширения (где известны только общие языки).
+ * Builder for the settings form. The same form appears in two places: the panel
+ * inside the player (where the track list of the current video is known) and the
+ * extension popup (where only the common languages are known).
  *
- * Разница между ними -- только в источнике списка языков, поэтому он
- * передаётся снаружи через getLangOptions().
+ * The only difference between them is where the language list comes from, so it
+ * is passed in from outside through getLangOptions().
  */
 (() => {
   const DS = (window.DS = window.DS || {});
 
-  /** Языки для попапа, где список дорожек видео недоступен. */
+  /** Languages for the popup, where the video's track list is unavailable. */
   DS.COMMON_LANGS = [
     'ru', 'en', 'uk', 'de', 'fr', 'es', 'it', 'pt', 'pl', 'tr',
     'ar', 'zh-Hans', 'ja', 'ko', 'hi', 'kk', 'be', 'nl', 'sv', 'cs', 'he', 'id', 'vi'
   ];
 
   const TRANSLATORS = [
-    { value: 'youtube', label: 'Автоперевод YouTube (быстро, без лимитов)' },
-    { value: 'google', label: 'Google Переводчик (бесплатно)' },
-    { value: 'deepl', label: 'DeepL (нужен бесплатный ключ, лучшее качество)' },
-    { value: 'mymemory', label: 'MyMemory (запасной, малая квота)' }
+    { value: 'youtube', label: 'YouTube translation (fast, no limits)' },
+    { value: 'google', label: 'Google Translate (free)' },
+    { value: 'deepl', label: 'DeepL (free key required, best quality)' },
+    { value: 'mymemory', label: 'MyMemory (fallback, small quota)' }
   ];
 
   const SCHEMA = [
-    { section: 'Языки' },
-    { key: 'primaryLang', label: 'Первый', type: 'lang', role: 'primary' },
-    { key: 'secondaryLang', label: 'Второй', type: 'lang', role: 'secondary' },
-    { key: 'allowTranslation', label: 'Переводить, если готовой дорожки нет', type: 'bool' },
-    { key: 'translator', label: 'Переводчик', type: 'select', options: TRANSLATORS,
+    { section: 'Languages' },
+    { key: 'primaryLang', label: 'First', type: 'lang', role: 'primary' },
+    { key: 'secondaryLang', label: 'Second', type: 'lang', role: 'secondary' },
+    { key: 'allowTranslation', label: 'Translate when there is no ready-made track', type: 'bool' },
+    { key: 'translator', label: 'Translator', type: 'select', options: TRANSLATORS,
       when: (s) => s.allowTranslation },
-    { key: 'deeplKey', label: 'Ключ DeepL', type: 'text', placeholder: 'xxxx-xxxx-...:fx',
+    { key: 'deeplKey', label: 'DeepL key', type: 'text', placeholder: 'xxxx-xxxx-...:fx',
       when: (s) => s.allowTranslation && s.translator === 'deepl' },
 
-    { section: 'Вид' },
-    { key: 'fontSize', label: 'Размер', type: 'range', min: 60, max: 200, step: 5, suffix: '%' },
-    { key: 'bottomOffset', label: 'Отступ снизу', type: 'range', min: 0, max: 40, step: 1, suffix: '%' },
-    { key: 'background', label: 'Подложка', type: 'range', min: 0, max: 100, step: 5, suffix: '%' },
-    { key: 'primaryColor', label: 'Цвет первого', type: 'color' },
-    { key: 'secondaryColor', label: 'Цвет второго', type: 'color' },
-    { key: 'swapOrder', label: 'Второй язык сверху', type: 'bool' },
+    { section: 'Appearance' },
+    { key: 'fontSize', label: 'Size', type: 'range', min: 60, max: 200, step: 5, suffix: '%' },
+    { key: 'bottomOffset', label: 'Offset from bottom', type: 'range', min: 0, max: 40, step: 1, suffix: '%' },
+    { key: 'background', label: 'Backdrop', type: 'range', min: 0, max: 100, step: 5, suffix: '%' },
+    { key: 'primaryColor', label: 'First language colour', type: 'color' },
+    { key: 'secondaryColor', label: 'Second language colour', type: 'color' },
+    { key: 'swapOrder', label: 'Second language on top', type: 'bool' },
 
-    { section: 'Поведение' },
-    { key: 'hideNative', label: 'Прятать родные субтитры YouTube', type: 'bool' },
-    { key: 'pauseOnHover', label: 'Пауза при наведении на субтитры', type: 'bool' },
-    { key: 'groupBySentence', label: 'Показывать оригинал предложениями при переводе', type: 'bool' }
+    { section: 'Behaviour' },
+    { key: 'hideNative', label: "Hide YouTube's own subtitles", type: 'bool' },
+    { key: 'pauseOnHover', label: 'Pause when hovering the subtitles', type: 'bool' },
+    { key: 'groupBySentence', label: 'Show whole sentences', type: 'bool' }
   ];
 
   function el(tag, cls, text) {
@@ -71,19 +71,19 @@
         addOption(select, o);
       }
     }
-    // Если сохранённого языка нет в списке дорожек, всё равно показываем выбор.
+    // If the saved language is not among the tracks, still show the choice.
     const flat = options.flatMap((o) => (o.group ? o.options : [o]));
     if (value != null && !flat.some((o) => o.value === value)) {
       const opt = document.createElement('option');
       opt.value = value;
-      opt.textContent = DS.languageName(value) + ' (нет у этого видео)';
+      opt.textContent = DS.languageName(value) + ' (not on this video)';
       select.appendChild(opt);
     }
     select.value = value;
   }
 
   /**
-   * @param {HTMLElement} root       куда рисовать
+   * @param {HTMLElement} root       where to render
    * @param {object} opts
    * @param {(role:string)=>Array} opts.getLangOptions
    */
@@ -146,7 +146,7 @@
         applyVisibility();
       };
 
-      // Ползунки и цвет обновляем на лету, остальное -- по change.
+      // Sliders and colours update live, everything else on change.
       input.addEventListener(item.type === 'range' || item.type === 'color' ? 'input' : 'change', commit);
 
       root.appendChild(row);

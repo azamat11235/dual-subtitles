@@ -1,4 +1,4 @@
-/** Крошечный раннер: собирает тесты и печатает отчёт. Без зависимостей. */
+/** Tiny runner: collects the tests and prints a report. No dependencies. */
 const tests = [];
 
 export function test(name, fn) {
@@ -19,7 +19,7 @@ export async function runAll() {
       console.log('       ' + String(e.message).split('\n').join('\n       '));
     }
   }
-  console.log(`\n${passed}/${tests.length} тестов прошло`);
+  console.log(`\n${passed}/${tests.length} tests passed`);
   if (failures.length) process.exitCode = 1;
   return failures.length === 0;
 }

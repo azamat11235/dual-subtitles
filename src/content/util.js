@@ -1,7 +1,7 @@
 /**
- * Общие утилиты и настройки. Первый скрипт в цепочке content scripts —
- * создаёт пространство имён window.DS, которое видят все остальные файлы
- * (content scripts одного расширения делят один isolated world).
+ * Shared helpers and settings. First script in the content-script chain — it
+ * creates the window.DS namespace that every other file uses (all content
+ * scripts of one extension share a single isolated world).
  */
 (() => {
   const DS = (window.DS = window.DS || {});
@@ -10,29 +10,29 @@
   DS.log = (...a) => DEBUG && console.log('%c[dual-subs]', 'color:#3ea6ff', ...a);
   DS.warn = (...a) => console.warn('[dual-subs]', ...a);
 
-  /** Настройки по умолчанию. Хранятся в chrome.storage.sync. */
+  /** Default settings. Stored in chrome.storage.sync. */
   DS.DEFAULTS = {
     enabled: true,
-    // 'auto' = язык оригинала видео; иначе код языка ('en', 'ru', ...)
+    // 'auto' = the language of the video itself; otherwise a code ('en', 'ru', ...)
     primaryLang: 'auto',
     secondaryLang: 'ru',
-    // Разрешать машинный перевод, если готовой дорожки нет
+    // Allow machine translation when there is no ready-made track
     allowTranslation: true,
-    // Порядок провайдеров перевода. 'youtube' — встроенный автоперевод YouTube.
+    // Translation provider. 'youtube' is YouTube's own built-in translation.
     translator: 'youtube',
     deeplKey: '',
-    // Внешний вид
-    fontSize: 100,        // % от базового размера
-    lineGap: 4,           // px между строками
-    bottomOffset: 8,      // % высоты плеера
-    background: 55,       // непрозрачность подложки, %
+    // Appearance
+    fontSize: 100,        // % of the base size
+    lineGap: 4,           // px between the lines
+    bottomOffset: 8,      // % of the player height
+    background: 55,       // backdrop opacity, %
     primaryColor: '#ffffff',
     secondaryColor: '#7fd1ff',
-    swapOrder: false,     // true — второй язык сверху
-    // Поведение
-    hideNative: true,     // прятать родные субтитры YouTube
-    pauseOnHover: false,  // пауза при наведении мыши на субтитры
-    groupBySentence: true // если перевод машинный — показывать обе строки предложениями
+    swapOrder: false,     // true — second language on top
+    // Behaviour
+    hideNative: true,     // hide YouTube's own subtitles
+    pauseOnHover: false,  // pause when the mouse is over the subtitles
+    groupBySentence: true // show whole sentences instead of raw cues
   };
 
   let cache = null;
@@ -61,16 +61,16 @@
     listeners.forEach((fn) => fn(cache, patch));
   });
 
-  /** Человекочитаемое название языка на русском. */
+  /** Human-readable language name. */
   const displayNames = (() => {
-    try { return new Intl.DisplayNames(['ru'], { type: 'language' }); } catch { return null; }
+    try { return new Intl.DisplayNames(['en'], { type: 'language' }); } catch { return null; }
   })();
   DS.languageName = (code) => {
-    if (!code || code === 'auto') return 'Язык видео';
+    if (!code || code === 'auto') return 'Video language';
     try {
       const n = displayNames?.of(code);
       if (n && n !== code) return n[0].toUpperCase() + n.slice(1);
-    } catch { /* неизвестный код — покажем как есть */ }
+    } catch { /* unknown code — show it as it is */ }
     return code;
   };
 
@@ -81,10 +81,10 @@
     return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   };
 
-  /** Уникальный ключ дорожки — по нему сравниваем выбор пользователя. */
+  /** Unique key of a track — used to compare it against the user's choice. */
   DS.trackKey = (t) => (t ? `${t.languageCode}|${t.kind || ''}|${t.name || ''}` : '');
 
-  /** Ждём появления элемента в DOM. */
+  /** Waits for an element to appear in the DOM. */
   DS.waitFor = (selector, timeout = 15000) => new Promise((resolve) => {
     const found = document.querySelector(selector);
     if (found) return resolve(found);

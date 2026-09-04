@@ -1,4 +1,4 @@
-/** Попап расширения: те же настройки, что и в панели плеера, но глобальные. */
+/** Extension popup: the same settings as the in-player panel, but global. */
 (async () => {
   const enabled = document.getElementById('enabled');
   const cacheInfo = document.getElementById('cacheInfo');
@@ -8,16 +8,16 @@
   enabled.addEventListener('change', () => DS.setSettings({ enabled: enabled.checked }));
   DS.onSettingsChange((s) => { enabled.checked = s.enabled; });
 
-  // В попапе список дорожек конкретного видео недоступен -- показываем
-  // общий список языков.
+  // The popup has no access to a particular video's track list -- show the
+  // common set of languages instead.
   const langOptions = (role) => {
     const head = role === 'primary'
-      ? [{ value: 'auto', label: 'Язык видео' }]
-      : [{ value: 'off', label: 'Выключен' }];
+      ? [{ value: 'auto', label: 'Video language' }]
+      : [{ value: 'off', label: 'Off' }];
     return [
       ...head,
       {
-        group: 'Языки',
+        group: 'Languages',
         options: DS.COMMON_LANGS.map((c) => ({ value: c, label: DS.languageName(c) }))
       }
     ];
@@ -29,7 +29,7 @@
   function showCacheStats() {
     chrome.runtime.sendMessage({ type: 'cacheStats' }, (r) => {
       if (chrome.runtime.lastError || !r?.ok) return;
-      cacheInfo.textContent = r.entries ? `${r.entries} видео в кэше` : 'кэш пуст';
+      cacheInfo.textContent = r.entries ? `${r.entries} videos cached` : 'cache is empty';
     });
   }
   showCacheStats();

@@ -1,8 +1,8 @@
-/** Тесты чистой логики фонового воркера: батчинг, порядок провайдеров, параллелизм. */
+/** Tests for the worker's pure logic: batching, provider order, concurrency. */
 import assert from 'node:assert/strict';
 import { test } from './harness.mjs';
 
-// Воркер при загрузке вешает слушателей chrome.* -- подставляем заглушку.
+// On load the worker registers chrome.* listeners -- give it a stub.
 const noopListener = { addListener() {} };
 globalThis.chrome = {
   runtime: { onConnect: noopListener, onMessage: noopListener },
@@ -13,51 +13,51 @@ globalThis.chrome = {
 
 const sw = await import('../src/background/service-worker.js');
 
-// --- разбиение на пачки ---
+// --- splitting into batches ---
 
-test('chunkByChars не превышает лимит и ничего не теряет', () => {
-  const texts = Array.from({ length: 40 }, (_, i) => 'фраза номер ' + i);
+test('chunkByChars stays under the limit and loses nothing', () => {
+  const texts = Array.from({ length: 40 }, (_, i) => 'phrase number ' + i);
   const chunks = sw.chunkByChars(texts, 100);
   assert.deepEqual(chunks.flat(), texts);
   for (const c of chunks) {
     const len = c.reduce((n, t) => n + t.length + 1, 0);
-    // Лимит может быть превышен только одной строкой, которая длиннее лимита сама по себе.
-    assert.ok(len <= 100 || c.length === 1, `пачка длиной ${len}`);
+    // The limit can only be exceeded by a single string longer than the limit itself.
+    assert.ok(len <= 100 || c.length === 1, `batch of length ${len}`);
   }
 });
 
-test('chunkByChars не теряет строку длиннее лимита', () => {
-  const chunks = sw.chunkByChars(['x'.repeat(500), 'коротко'], 100);
-  assert.deepEqual(chunks.flat(), ['x'.repeat(500), 'коротко']);
+test('chunkByChars keeps a string longer than the limit', () => {
+  const chunks = sw.chunkByChars(['x'.repeat(500), 'short'], 100);
+  assert.deepEqual(chunks.flat(), ['x'.repeat(500), 'short']);
 });
 
-test('chunkByChars на пустом списке даёт пустой результат', () => {
+test('chunkByChars on an empty list gives an empty result', () => {
   assert.deepEqual(sw.chunkByChars([], 100), []);
 });
 
-// --- порядок провайдеров ---
+// --- provider order ---
 
-test('providerChain ставит выбранный провайдер первым', () => {
+test('providerChain puts the chosen provider first', () => {
   assert.equal(sw.providerChain('mymemory', false)[0], 'mymemory');
 });
 
-test('providerChain подменяет youtube на google (tlang живёт в content script)', () => {
+test('providerChain swaps youtube for google (tlang lives in the content script)', () => {
   assert.equal(sw.providerChain('youtube', false)[0], 'google');
 });
 
-test('providerChain не предлагает DeepL без ключа', () => {
+test('providerChain does not offer DeepL without a key', () => {
   assert.ok(!sw.providerChain('google', false).includes('deepl'));
   assert.ok(sw.providerChain('google', true).includes('deepl'));
 });
 
-test('providerChain не повторяет провайдеров', () => {
+test('providerChain never repeats a provider', () => {
   const chain = sw.providerChain('google', true);
   assert.equal(new Set(chain).size, chain.length);
 });
 
-// --- батчинг с проверкой выравнивания ---
+// --- batching with an alignment check ---
 
-test('batchWithVerification возвращает 1:1, когда разбиение сохранилось', async () => {
+test('batchWithVerification returns 1:1 when the split survived', async () => {
   let calls = 0;
   const translate = async (joined) => {
     calls++;
@@ -65,11 +65,11 @@ test('batchWithVerification возвращает 1:1, когда разбиен�
   };
   const out = await sw.batchWithVerification(['a', 'b', 'c'], translate);
   assert.deepEqual(out, ['T:a', 'T:b', 'T:c']);
-  assert.equal(calls, 1, 'при совпадении хватает одного запроса');
+  assert.equal(calls, 1, 'one request is enough when it matches');
 });
 
-test('batchWithVerification чинит выравнивание, когда переводчик склеил строки', async () => {
-  // Модель поведения Google: на длинных пачках иногда теряет перевод строки.
+test('batchWithVerification repairs the alignment when lines got glued', async () => {
+  // A model of Google's behaviour: on long batches it sometimes drops a newline.
   const translate = async (joined) => {
     const lines = joined.split('\n');
     const translated = lines.map((l) => 'T:' + l).join('\n');
@@ -79,14 +79,14 @@ test('batchWithVerification чинит выравнивание, когда пе
   assert.deepEqual(out, ['T:a', 'T:b', 'T:c', 'T:d']);
 });
 
-test('batchWithVerification схлопывает лишние переводы строк в одиночной строке', async () => {
-  const translate = async (joined) => 'первая\nвторая';
-  const out = await sw.batchWithVerification(['одна строка'], translate);
-  assert.deepEqual(out, ['первая вторая']);
+test('batchWithVerification collapses extra newlines inside a single string', async () => {
+  const translate = async (joined) => 'first\nsecond';
+  const out = await sw.batchWithVerification(['one line'], translate);
+  assert.deepEqual(out, ['first second']);
 });
 
-test('batchWithVerification всегда отдаёт столько же строк, сколько получил', async () => {
-  // Злонамеренный переводчик: разбиение не сохраняет никогда.
+test('batchWithVerification always returns as many strings as it got', async () => {
+  // A malicious translator: it never preserves the split.
   const translate = async (joined) => joined.split('\n').map((l) => 'T:' + l).join(' | ');
   for (const n of [1, 2, 5, 9]) {
     const input = Array.from({ length: n }, (_, i) => 'item' + i);
@@ -95,16 +95,16 @@ test('batchWithVerification всегда отдаёт столько же стр
   }
 });
 
-test('batchWithVerification на пустом списке не делает запросов', async () => {
+test('batchWithVerification makes no request for an empty list', async () => {
   let calls = 0;
   const out = await sw.batchWithVerification([], async () => { calls++; return ''; });
   assert.deepEqual(out, []);
   assert.equal(calls, 0);
 });
 
-// --- параллелизм ---
+// --- concurrency ---
 
-test('mapLimit сохраняет порядок результатов', async () => {
+test('mapLimit preserves the order of the results', async () => {
   const items = [30, 5, 20, 1, 10];
   const out = await sw.mapLimit(items, 2, async (ms) => {
     await new Promise((r) => setTimeout(r, ms));
@@ -113,7 +113,7 @@ test('mapLimit сохраняет порядок результатов', async 
   assert.deepEqual(out, items);
 });
 
-test('mapLimit не превышает заданный параллелизм', async () => {
+test('mapLimit stays within the given concurrency', async () => {
   let inFlight = 0;
   let peak = 0;
   await sw.mapLimit(Array.from({ length: 12 }, (_, i) => i), 3, async () => {
@@ -121,14 +121,14 @@ test('mapLimit не превышает заданный параллелизм',
     await new Promise((r) => setTimeout(r, 5));
     inFlight--;
   });
-  assert.ok(peak <= 3, `пик параллелизма ${peak}`);
+  assert.ok(peak <= 3, `peak concurrency ${peak}`);
 });
 
-// --- ключ кэша ---
+// --- cache key ---
 
-test('hashTexts меняется при изменении текста и его длины', () => {
-  const a = sw.hashTexts(['раз', 'два']);
-  assert.equal(a, sw.hashTexts(['раз', 'два']));
-  assert.notEqual(a, sw.hashTexts(['раз', 'три']));
-  assert.notEqual(a, sw.hashTexts(['раз', 'два', 'три']));
+test('hashTexts changes with the text and with its length', () => {
+  const a = sw.hashTexts(['one', 'two']);
+  assert.equal(a, sw.hashTexts(['one', 'two']));
+  assert.notEqual(a, sw.hashTexts(['one', 'three']));
+  assert.notEqual(a, sw.hashTexts(['one', 'two', 'three']));
 });

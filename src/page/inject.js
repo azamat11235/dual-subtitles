@@ -1,10 +1,10 @@
 /**
- * Мост в main world страницы.
+ * Bridge into the page's main world.
  *
- * Content script живёт в isolated world и не видит ни ytInitialPlayerResponse,
- * ни методы, которые YouTube навешивает на элемент #movie_player. Этот файл
- * инжектится в саму страницу и отвечает на запросы content script'а
- * через window.postMessage.
+ * A content script lives in the isolated world and sees neither
+ * ytInitialPlayerResponse nor the methods YouTube hangs off the #movie_player
+ * element. This file is injected into the page itself and answers the content
+ * script's requests over window.postMessage.
  */
 (() => {
   if (window.__dsBridgeInstalled) return;
@@ -17,7 +17,7 @@
     document.querySelector('#shorts-player') ||
     document.querySelector('.html5-video-player');
 
-  /** Состояние родных субтитров до того, как мы их временно включили. */
+  /** State of the native captions before we switched them on for a moment. */
   let savedTrack = null;
   let didPrime = false;
 
@@ -28,7 +28,7 @@
         const r = p.getPlayerResponse();
         if (r) return r;
       }
-    } catch { /* плеер ещё не готов */ }
+    } catch { /* the player is not ready yet */ }
     return window.ytInitialPlayerResponse || null;
   }
 
@@ -47,25 +47,25 @@
     },
 
     /**
-     * Заставляем плеер один раз запросить дорожку субтитров — только ради того,
-     * чтобы в Resource Timing появился URL с валидным pot-токеном.
+     * Makes the player request a subtitle track once — purely so that a URL with
+     * a valid pot token shows up in Resource Timing.
      */
     primeCaptions({ force = false } = {}) {
       const p = findPlayer();
       if (!p || typeof p.getOption !== 'function') return null;
 
       let current = null;
-      try { current = p.getOption('captions', 'track'); } catch { /* модуль ещё не загружен */ }
+      try { current = p.getOption('captions', 'track'); } catch { /* module not loaded yet */ }
       if (current && current.languageCode && !force) return { alreadyOn: true };
 
-      try { if (typeof p.loadModule === 'function') p.loadModule('captions'); } catch { /* уже загружен */ }
+      try { if (typeof p.loadModule === 'function') p.loadModule('captions'); } catch { /* already loaded */ }
 
       let list = [];
-      try { list = p.getOption('captions', 'tracklist', { includeAsr: true }) || []; } catch { /* нет списка */ }
+      try { list = p.getOption('captions', 'tracklist', { includeAsr: true }) || []; } catch { /* no list */ }
       if (!list.length) return null;
 
-      // При force берём дорожку, отличную от текущей: на ту же самую плеер
-      // ответит из своего кэша и нового сетевого запроса не сделает.
+      // With force, pick a track other than the current one: for the same track
+      // the player answers from its own cache and makes no network request.
       const target = force
         ? (list.find((t) => t.languageCode !== current?.languageCode) || list[0])
         : list[0];
@@ -79,7 +79,7 @@
       }
     },
 
-    /** Возвращаем субтитры плеера в исходное состояние. */
+    /** Puts the player's captions back the way they were. */
     restoreCaptions() {
       if (!didPrime) return { restored: false };
       const p = findPlayer();
@@ -93,7 +93,7 @@
       }
     },
 
-    /** Управление родными субтитрами из нашей панели. */
+    /** Controlling the native captions from our panel. */
     setNativeTrack({ languageCode = null } = {}) {
       const p = findPlayer();
       if (!p || typeof p.setOption !== 'function') return null;

@@ -1,21 +1,21 @@
 /**
- * Получение списка дорожек и самих субтитров.
+ * Getting the track list and the subtitles themselves.
  *
- * Почему всё так непросто. Наивный способ — взять captionTracks[].baseUrl из
- * ytInitialPlayerResponse и скачать его — сегодня возвращает HTTP 200 с ПУСТЫМ
- * телом: YouTube требует в запросе токен pot (proof-of-origin), которого в
- * baseUrl нет. Рабочий способ — подсмотреть URL, который запрашивает сам плеер
- * (в нём есть pot), и переиспользовать его, подменив параметры дорожки:
- * lang / name / kind / tlang НЕ входят в подпись (sparams), поэтому одним
- * перехваченным URL можно скачать любую дорожку и любой автоперевод.
+ * Why this is not simple. The naive way — take captionTracks[].baseUrl from
+ * ytInitialPlayerResponse and download it — today returns HTTP 200 with an EMPTY
+ * body: YouTube wants a pot (proof-of-origin) token in the request, and baseUrl
+ * has none. What does work is to watch the URL the player itself requests (that
+ * one has a pot) and reuse it with the track parameters swapped: lang / name /
+ * kind / tlang are not part of the signature (sparams), so one intercepted URL
+ * can fetch any track and any translation.
  *
- * URL плеера видно из isolated world через Resource Timing API — хук в main
- * world для этого не нужен.
+ * The player's URL is visible from the isolated world through the Resource
+ * Timing API — no main-world hook needed for it.
  */
 (() => {
   const DS = (window.DS = window.DS || {});
 
-  // ───────────────────────────── мост в main world ─────────────────────────────
+  // ───────────────────────────── bridge to main world ──────────────────────────
 
   const pending = new Map();
   let msgSeq = 0;
@@ -33,9 +33,9 @@
   }
 
   /**
-   * Обычно мост уже стоит: манифест грузит inject.js как content script в
-   * MAIN world (Chrome 111+). Тег <script> внедряем только если ответа нет --
-   * это запасной путь для старых сборок Chromium.
+   * The bridge is normally already in place: the manifest loads inject.js as a
+   * content script in the MAIN world (Chrome 111+). The <script> tag is only
+   * injected when there is no answer — a fallback for older Chromium builds.
    */
   function ensureBridge() {
     if (bridgeReady) return bridgeReady;
@@ -73,9 +73,9 @@
   }
   DS.callPage = callPage;
 
-  // ──────────────────────── перехват URL с pot-токеном ─────────────────────────
+  // ───────────────────────── intercepting the pot URL ──────────────────────────
 
-  /** videoId → последний увиденный URL /api/timedtext для этого видео. */
+  /** videoId → the last /api/timedtext URL seen for that video. */
   const potUrls = new Map();
 
   function rememberUrl(url) {
@@ -83,13 +83,13 @@
     try {
       const v = new URL(url).searchParams.get('v');
       if (v) potUrls.set(v, url);
-    } catch { /* не наш URL */ }
+    } catch { /* not our URL */ }
   }
 
   function scanExistingEntries() {
     try {
       for (const e of performance.getEntriesByType('resource')) rememberUrl(e.name);
-    } catch { /* Resource Timing недоступен */ }
+    } catch { /* Resource Timing unavailable */ }
   }
 
   try {
@@ -101,8 +101,8 @@
   }
 
   /**
-   * Гарантирует наличие pot-URL для видео: если плеер ещё не грузил субтитры,
-   * просим его на мгновение включить дорожку и ловим запрос.
+   * Makes sure a pot URL exists for the video: if the player has not loaded any
+   * subtitles yet, ask it to switch a track on for a moment and catch the request.
    */
   async function ensurePotUrl(videoId, { force = false } = {}) {
     scanExistingEntries();
@@ -116,16 +116,16 @@
       scanExistingEntries();
       if (potUrls.has(videoId)) break;
     }
-    // Возвращаем плееру исходное состояние субтитров.
+    // Put the player's own captions back the way they were.
     callPage('restoreCaptions', {}, 3000);
     return potUrls.get(videoId) || null;
   }
 
-  // ──────────────────────────── список дорожек ─────────────────────────────────
+  // ──────────────────────────────── track list ─────────────────────────────────
 
   function normalizeTrack(t) {
     let name = null;
-    try { name = new URL(t.baseUrl, location.origin).searchParams.get('name'); } catch { /* нет baseUrl */ }
+    try { name = new URL(t.baseUrl, location.origin).searchParams.get('name'); } catch { /* no baseUrl */ }
     return {
       languageCode: t.languageCode,
       kind: t.kind === 'asr' ? 'asr' : '',
@@ -137,9 +137,9 @@
   }
 
   /**
-   * Запасной путь: выдрать captionTracks прямо из HTML страницы.
-   * Границу массива ищем счётчиком скобок, а не регуляркой: внутри дорожек
-   * встречаются вложенные массивы (name.runs), и ленивый поиск на них спотыкается.
+   * Fallback: pull captionTracks straight out of the page HTML.
+   * The end of the array is found by counting brackets rather than with a regex:
+   * tracks contain nested arrays (name.runs), and a lazy match trips over them.
    */
   function extractJsonArray(text, from) {
     let depth = 0;
@@ -190,12 +190,12 @@
     };
   };
 
-  // ─────────────────────────── загрузка субтитров ──────────────────────────────
+  // ───────────────────────────── fetching subtitles ────────────────────────────
 
   function buildFromPot(potUrl, track, tlang) {
     const u = new URL(potUrl);
     u.searchParams.set('fmt', 'json3');
-    // Параметры, определяющие дорожку. Они не подписаны, их можно подменять.
+    // The parameters that select the track. They are unsigned and can be swapped.
     const src = track.baseUrl ? new URL(track.baseUrl, location.origin).searchParams : null;
     const pick = (key, fallback) => (src ? src.get(key) : fallback);
 
@@ -223,7 +223,7 @@
   const RETRYABLE = new Set(['empty', 'rate-limit', 'server', 'network']);
 
   /**
-   * Одна попытка. Возвращает {cues} либо {error} — вызывающий решает, повторять ли.
+   * One attempt. Returns {cues} or {error} — the caller decides whether to retry.
    */
   async function attempt(url, isXml) {
     let res;
@@ -237,7 +237,7 @@
     if (!res.ok) return { error: 'http-' + res.status };
 
     const text = await res.text();
-    // Главный режим отказа YouTube: 200 и пустое тело.
+    // YouTube's main failure mode: 200 with an empty body.
     if (!text.trim()) return { error: 'empty' };
     if (/^\s*<(!doctype\s+)?html/i.test(text)) return { error: 'rate-limit' };
 
@@ -250,10 +250,10 @@
     }
   }
 
-  const cueCache = new Map(); // ключ → cues
+  const cueCache = new Map(); // key → cues
 
   /**
-   * Скачивает субтитры дорожки, при необходимости с автопереводом YouTube (tlang).
+   * Downloads a track's subtitles, optionally through YouTube's own translation.
    * @returns {Promise<{cues:Array}|{error:string}>}
    */
   DS.fetchCues = async function fetchCues(videoId, track, tlang = null) {
@@ -273,11 +273,11 @@
       let lastError = 'unknown';
       for (const s of strategies) {
         for (let tryNo = 0; tryNo < 3; tryNo++) {
-          if (tryNo) await DS.sleep(400 * tryNo * tryNo); // 0 / 400 / 1600 мс
+          if (tryNo) await DS.sleep(400 * tryNo * tryNo); // 0 / 400 / 1600 ms
           const r = await attempt(s.url, s.xml);
           if (r.cues) return r;
           lastError = r.error;
-          if (!RETRYABLE.has(r.error)) break; // 403/parse — повтор не поможет
+          if (!RETRYABLE.has(r.error)) break; // 403/parse — retrying will not help
         }
       }
       return { error: lastError };
@@ -286,8 +286,8 @@
     const potUrl = await ensurePotUrl(videoId);
     let result = await run(potUrl);
 
-    // Подпись в ссылке живёт считаные часы. Если за долгий просмотр она
-    // протухла, просим плеер сходить за субтитрами заново и пробуем ещё раз.
+    // The signature in the link lives only a few hours. If it went stale during
+    // a long watch, ask the player to fetch subtitles again and retry.
     if (!result.cues && potUrl) {
       potUrls.delete(videoId);
       const fresh = await ensurePotUrl(videoId, { force: true });
@@ -296,10 +296,10 @@
 
     if (result.cues) {
       cueCache.set(key, result.cues);
-      DS.log('субтитры получены', { track: DS.trackKey(track), tlang, cues: result.cues.length });
+      DS.log('subtitles fetched', { track: DS.trackKey(track), tlang, cues: result.cues.length });
       return { cues: result.cues };
     }
-    DS.log('не удалось скачать субтитры', { track: DS.trackKey(track), tlang, error: result.error });
+    DS.log('could not fetch subtitles', { track: DS.trackKey(track), tlang, error: result.error });
     return { error: result.error };
   };
 

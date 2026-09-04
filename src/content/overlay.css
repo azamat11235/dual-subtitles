@@ -1,4 +1,4 @@
-/* ───────────────────────────── Оверлей субтитров ───────────────────────────── */
+/* ───────────────────────────── Subtitle overlay ─────────────────────────────── */
 
 .ds-overlay {
   position: absolute;
@@ -17,8 +17,8 @@
   transition: bottom 0.18s ease-out;
 }
 
-/* Когда панель управления видна, поднимаем субтитры над ней —
-   так же, как это делает сам YouTube. */
+/* When the control bar is visible, lift the subtitles above it —
+   exactly as YouTube itself does. */
 .html5-video-player:not(.ytp-autohide) .ds-overlay {
   bottom: calc(var(--ds-bottom, 8%) + 52px);
 }
@@ -48,7 +48,7 @@
   white-space: pre-wrap;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.85);
 
-  /* Текст должен выделяться мышью — это половина смысла двойных субтитров. */
+  /* The text must be selectable — that is half the point of dual subtitles. */
   pointer-events: auto;
   user-select: text;
   -webkit-user-select: text;
@@ -62,10 +62,10 @@
   font-weight: 400;
 }
 
-/* Прячем родные субтитры YouTube, когда рисуем свои. */
+/* Hide YouTube's own subtitles while we draw ours. */
 .ds-hide-native .ytp-caption-window-container { display: none !important; }
 
-/* ─────────────────────────── Кнопка в панели плеера ────────────────────────── */
+/* ─────────────────────────── Button in the player bar ──────────────────────── */
 
 .ds-btn { position: relative; }
 
@@ -93,7 +93,7 @@
   50% { opacity: 0.45; }
 }
 
-/* ──────────────────────────── Панель настроек ──────────────────────────────── */
+/* ──────────────────────────── Settings panel ───────────────────────────────── */
 
 .ds-panel {
   position: absolute;
