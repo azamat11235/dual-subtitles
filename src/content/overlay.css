@@ -4,7 +4,8 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: var(--ds-bottom, 8%);
+  /* Where YouTube rests its own captions: bottom 2% of the player. */
+  bottom: 2%;
   z-index: 25;
 
   display: flex;
@@ -20,7 +21,7 @@
 /* When the control bar is visible, lift the subtitles above it —
    exactly as YouTube itself does. */
 .html5-video-player:not(.ytp-autohide) .ds-overlay {
-  bottom: calc(var(--ds-bottom, 8%) + 52px);
+  bottom: calc(2% + 52px);
 }
 
 .ds-overlay--hidden { display: none; }
@@ -30,7 +31,7 @@
 .ds-overlay--custom {
   left: var(--ds-x, 50%);
   right: auto;
-  bottom: var(--ds-y, 8%);
+  bottom: var(--ds-y, 2%);
   width: max-content;
   max-width: 88%;
   transform: translateX(-50%);
@@ -39,7 +40,7 @@
 /* Subtitles placed by hand stay where they were put: the control bar does not
    push them around, because the user already chose the spot. */
 .html5-video-player:not(.ytp-autohide) .ds-overlay--custom {
-  bottom: var(--ds-y, 8%);
+  bottom: var(--ds-y, 2%);
 }
 
 .ds-overlay--dragging { transition: none; }
@@ -131,11 +132,31 @@
 .ds-btn::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  /* Not the button's own box: the player draws this shorter than the button, so
+     it reads as a pill rather than a circle. 48x32 inside a 48x40 button here,
+     and it follows the same variable the player sizes it by. */
+  width: 48px;
+  height: calc(var(--yt-delhi-pill-height, 48px) - 8px);
+
   border-radius: 40px;
   background-color: transparent;
   pointer-events: none;
   transition: background-color 0.2s cubic-bezier(0.05, 0, 0, 1);
+}
+
+.ytp-big-mode:not(.ytp-xsmall-width-mode) .ds-btn::before {
+  width: var(--yt-delhi-big-mode-pill-height, 56px);
+  height: calc(var(--yt-delhi-big-mode-pill-height, 56px) - 8px);
+}
+
+.ytp-xsmall-width-mode .ds-btn::before {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
 }
 
 .ds-btn:hover::before {
@@ -189,7 +210,15 @@
 .ytp-big-mode .ds-btn::after { line-height: 22px; }
 
 /* Fallback for a control bar with no neighbour to measure. */
-.ds-btn svg { width: 100%; height: 100%; box-sizing: border-box; }
+.ds-btn svg {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  /* .ytp-settings-button svg, matched: the glyph turns while its panel is open. */
+  transition: transform 0.1s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.ds-btn[aria-expanded="true"] svg { transform: rotate(30deg); }
 
 .ds-btn .ds-btn-underline {
   position: absolute;

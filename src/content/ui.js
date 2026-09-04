@@ -80,13 +80,6 @@
     const title = document.createElement('div');
     title.className = 'ds-panel__title';
     title.append('Dual subtitles');
-    const close = document.createElement('button');
-    close.className = 'ds-panel__close';
-    close.type = 'button';
-    close.textContent = '×';
-    close.title = 'Close';
-    close.addEventListener('click', () => togglePanel(false));
-    title.appendChild(close);
     p.appendChild(title);
 
     const master = document.createElement('label');
@@ -145,6 +138,7 @@
     if (!panel) return;
     const next = show ?? panel.hidden;
     panel.hidden = !next;
+    button?.setAttribute('aria-expanded', String(next));
     if (next) {
       closePlayerMenu();
       form?.refresh();
@@ -227,6 +221,7 @@
     // one on top of it would be a second bubble a moment later.
     button.dataset.title = 'Dual subtitles';
     button.setAttribute('aria-label', 'Dual subtitles');
+    button.setAttribute('aria-expanded', 'false');
     button.innerHTML = ICON + '<span class="ds-btn-underline"></span>';
     button.addEventListener('click', (e) => {
       e.stopPropagation();
