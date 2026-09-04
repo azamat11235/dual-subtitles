@@ -158,7 +158,10 @@
 
   padding: 5px 9px;
   border-radius: 8px;
-  background: #000;
+  /* .ytp-tooltip-bottom-text, the layer that actually paints the bubble: 30%
+     black, so the frame shows through. The solid .ytp-tooltip-bg alongside it
+     is not used for this kind of tooltip and measures 0x0. */
+  background: rgba(0, 0, 0, 0.3);
 
   color: rgb(238, 238, 238);
   font-family: "YouTube Noto", Roboto, Arial, Helvetica, sans-serif;
