@@ -358,9 +358,8 @@
       }
     }
 
-    async function refresh() {
-      settings = await DS.getSettings();
-      closeSubmenu();
+    /** Writes the current settings into the rows, without disturbing the view. */
+    function syncRows() {
       for (const r of rows) {
         const { item } = r;
         if (isMenu(item)) { r.value.textContent = currentLabel(item); continue; }
@@ -372,6 +371,20 @@
       }
       applyVisibility();
     }
+
+    async function refresh() {
+      settings = await DS.getSettings();
+      closeSubmenu();
+      syncRows();
+    }
+
+    // A setting can change from the popup, from the other surface, or from a
+    // button here that writes it straight out -- "Put back" did exactly that,
+    // and its own row stayed on screen afterwards as if nothing had happened.
+    DS.onSettingsChange((next) => {
+      settings = next;
+      syncRows();
+    });
 
     // The caller puts its own furniture inside the list view, so that it slides
     // away with the rest when a submenu opens.

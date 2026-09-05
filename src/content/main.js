@@ -22,6 +22,13 @@
   const renderer = new DS.Renderer();
   DS.renderer = renderer;
 
+  DS.onTeardown(() => {
+    renderer.stop();
+    renderer.clear();
+    renderer.root?.remove();
+    document.querySelector('.html5-video-player')?.classList.remove('ds-hide-native');
+  });
+
   /** Public state — read by the settings panel. */
   DS.state = {
     videoId: null,

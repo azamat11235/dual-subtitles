@@ -311,11 +311,24 @@
   DS.initUi = function initUi() {
     ensureButton();
 
+    // Cut off from the extension, the page should be left as we found it rather
+    // than keeping a panel that can no longer save anything.
+    DS.onTeardown(() => {
+      holdControls(false);
+      panel?.remove();
+      button?.remove();
+      panel = null;
+      button = null;
+      document.removeEventListener('click', onDocClick, true);
+    });
+
     // YouTube rebuilds its control bar when the video changes and in fullscreen —
     // watch for that and put the button back. The observer is cheap: the real
     // work is hidden behind a debounce.
     const recheck = DS.debounce(() => ensureButton(), 200);
-    new MutationObserver(recheck).observe(document.documentElement, { childList: true, subtree: true });
+    const watcher = new MutationObserver(recheck);
+    watcher.observe(document.documentElement, { childList: true, subtree: true });
+    DS.onTeardown(() => watcher.disconnect());
 
     // The form is only rebuilt when the set of tracks changed: doing it on every
     // status update would reset a dropdown right under the user's cursor.

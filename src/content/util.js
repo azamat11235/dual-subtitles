@@ -38,28 +38,65 @@
   let cache = null;
   const listeners = new Set();
 
+  /**
+   * Whether this script can still reach the extension.
+   *
+   * Reloading an unpacked extension does not replace the copy already running
+   * in an open tab; it cuts it off. Every chrome.* call from then on throws
+   * "Extension context invalidated", which is what a dead settings panel looks
+   * like from the outside -- buttons that do nothing at all.
+   */
+  const connected = () => { try { return !!chrome.runtime?.id; } catch { return false; } };
+  DS.connected = connected;
+
+  const teardowns = new Set();
+  let tornDown = false;
+  DS.onTeardown = (fn) => teardowns.add(fn);
+  /** Takes our own additions back off the page and leaves it as we found it. */
+  DS.teardown = () => {
+    if (tornDown) return;
+    tornDown = true;
+    for (const fn of teardowns) { try { fn(); } catch { /* going away anyway */ } }
+    teardowns.clear();
+  };
+
   DS.getSettings = async () => {
     if (cache) return cache;
-    const stored = await chrome.storage.sync.get(DS.DEFAULTS);
-    cache = { ...DS.DEFAULTS, ...stored };
+    if (!connected()) return (cache = { ...DS.DEFAULTS });
+    try {
+      const stored = await chrome.storage.sync.get(DS.DEFAULTS);
+      cache = { ...DS.DEFAULTS, ...stored };
+    } catch {
+      DS.teardown();
+      cache = { ...DS.DEFAULTS };
+    }
     return cache;
   };
 
   DS.setSettings = async (patch) => {
     cache = { ...(cache || DS.DEFAULTS), ...patch };
-    await chrome.storage.sync.set(patch);
+    if (!connected()) { DS.teardown(); return cache; }
+    try {
+      await chrome.storage.sync.set(patch);
+    } catch {
+      DS.teardown();
+      return cache;
+    }
+    // storage.onChanged carries this back to every listener, this tab included.
     return cache;
   };
 
   DS.onSettingsChange = (fn) => listeners.add(fn);
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'sync') return;
-    const patch = {};
-    for (const [k, v] of Object.entries(changes)) patch[k] = v.newValue;
-    cache = { ...(cache || DS.DEFAULTS), ...patch };
-    listeners.forEach((fn) => fn(cache, patch));
-  });
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'sync') return;
+      const patch = {};
+      for (const [k, v] of Object.entries(changes)) patch[k] = v.newValue;
+      cache = { ...(cache || DS.DEFAULTS), ...patch };
+      listeners.forEach((fn) => fn(cache, patch));
+    });
+  } catch { /* already cut off */ }
 
   /** Human-readable language name. */
   const displayNames = (() => {
