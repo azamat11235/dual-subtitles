@@ -119,9 +119,25 @@
     // form itself in the popup, where the window follows its content.
     const shell = root.closest('.ds-panel') || root;
 
-    const DURATION = 300;                       // .ytp-popup-animating declares 250
+    const DURATION = 260;                       // .ytp-popup-animating declares 250
     const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
     const stillMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    /**
+     * Runs once the browser has had a chance to lay out and draw what was just
+     * built. A long submenu is hundreds of nodes, and starting the movement in
+     * the same task means the first frames go to that work instead: the change
+     * is then already part-way through by the time anything is drawn, which
+     * reads as a movement much brisker than the one back, where there is
+     * nothing to build.
+     */
+    function afterPaint(fn) {
+      if (typeof requestAnimationFrame !== 'function') { fn(); return; }
+      let ran = false;
+      const run = () => { if (!ran) { ran = true; fn(); } };
+      requestAnimationFrame(() => requestAnimationFrame(run));
+      setTimeout(run, 120);        // a document that never draws still has to move on
+    }
 
     let settle = null;
     /**
@@ -274,8 +290,17 @@
 
       submenu.appendChild(body);
       submenu.scrollTop = 0;
-      swap(list, submenu, 'forward');
-      back.focus();
+
+      // Lay the new list out now, while nothing is drawn between, so the cost is
+      // paid before the movement rather than during it.
+      submenu.hidden = false;
+      void submenu.offsetHeight;
+      submenu.hidden = true;
+
+      afterPaint(() => {
+        swap(list, submenu, 'forward');
+        back.focus();
+      });
     }
 
     for (const item of SCHEMA) {
