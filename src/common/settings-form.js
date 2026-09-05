@@ -174,14 +174,13 @@
           { opacity: 1, transform: 'translateX(0)' }
         ], options)
       ];
-      // Only when there is somewhere to go: at the panel's ceiling both views
-      // are taller than it and the height stays put, which is fine -- the views
-      // still carry the movement.
-      if (startHeight !== endHeight) {
-        running.push(shell.animate(
-          [{ height: `${startHeight}px` }, { height: `${endHeight}px` }], options
-        ));
-      }
+      // Always, even when the two heights are the same. Both views are out of
+      // normal flow for the duration, so the surface has nothing left to take
+      // its height from: without this it collapses to nothing and, being
+      // clipped, takes the whole panel off the screen until the movement ends.
+      running.push(shell.animate(
+        [{ height: `${startHeight}px` }, { height: `${endHeight}px` }], options
+      ));
 
       const done = () => {
         clearTimeout(timer);
