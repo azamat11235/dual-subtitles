@@ -9,17 +9,6 @@
    player's menu has no equivalent for — sliders, colours, a text field — and
    those are dressed in the same palette rather than invented afresh. */
 
-.ds-panel__title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 48px;
-  padding: 0 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 14px;
-  font-weight: 500;
-}
-
 .ds-row[hidden],
 .ds-panel__section[hidden] { display: none; }
 
@@ -155,14 +144,6 @@
    exactly as tall as whichever view is showing. */
 .ds-form { position: relative; }
 
-/* Laid over each other only while a swap runs; the movement itself is driven
-   from script, so that both sides start on the same tick. */
-.ds-form--animating .ds-view {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-}
 
 .ds-row input[type="text"] {
   flex: 0 1 auto;

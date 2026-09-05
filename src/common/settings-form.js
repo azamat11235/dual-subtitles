@@ -119,25 +119,25 @@
     // form itself in the popup, where the window follows its content.
     const shell = root.closest('.ds-panel') || root;
 
-    const DURATION = 250;                       // .ytp-popup-animating .ytp-panel
+    const DURATION = 300;                       // .ytp-popup-animating declares 250
     const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
     const stillMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     let settle = null;
     /**
-     * Slides one view out while the other comes in, and takes the surface's
-     * height with it -- the way the player moves between its own panels.
+     * Moves between the list and a submenu.
      *
-     * Driven by animations rather than transitions: a transition only starts
-     * once its starting value has been through a style resolution, so the two
-     * sides could begin a frame apart -- the arriving view snapping into place
-     * while the leaving one was still on its way out, the two crossing over each
-     * other. Three animations started together cannot drift apart.
+     * The player does this by reshaping the box: its panels sit absolutely
+     * inside a menu that clips them, and what animates is the menu's own width
+     * and height -- `.ytp-settings-menu` even says `will-change: width, height`.
+     * Nothing is dragged across the opening.
+     *
+     * So nothing is dragged across ours either. The content changes at once and
+     * only the surface moves, growing or shrinking into the new shape. Sliding
+     * a whole panel's width sideways is a much brisker movement, which is what
+     * made this feel sharp beside the player's.
      */
-    function swap(from, to, direction) {
-      const back = direction === 'back';
-      // A swap started mid-flight leaves the previous one half-applied. Finish
-      // it properly first rather than just dropping it.
+    function swap(from, to) {
       settle?.();
 
       // Both heights are read with the views in normal flow, so a ceiling on the
@@ -146,41 +146,34 @@
       from.hidden = true;
       to.hidden = false;
       const endHeight = shell.offsetHeight;
-      from.hidden = false;
 
       const finish = () => {
         settle = null;
-        root.classList.remove('ds-form--animating');
         shell.style.overflow = '';
-        from.hidden = true;
       };
 
-      if (stillMotion() || !shell.animate) { finish(); return; }
+      if (stillMotion() || !shell.animate || startHeight === endHeight) { finish(); return; }
 
-      root.classList.add('ds-form--animating');
       shell.style.overflow = 'hidden';
-
-      const options = { duration: DURATION, easing: EASING, fill: 'both' };
-      const running = [
-        shell.animate([{ height: `${startHeight}px` }, { height: `${endHeight}px` }], options),
-        from.animate([{ transform: 'translateX(0)' },
-          { transform: `translateX(${back ? '100%' : '-100%'})` }], options),
-        to.animate([{ transform: `translateX(${back ? '-100%' : '100%'})` },
-          { transform: 'translateX(0)' }], options)
-      ];
+      const growth = shell.animate(
+        [{ height: `${startHeight}px` }, { height: `${endHeight}px` }],
+        { duration: DURATION, easing: EASING, fill: 'both' }
+      );
 
       const done = () => {
-        // Layout first, animations second. Cancelling drops the filled values in
-        // the same tick, and until the class comes off both views are still out
-        // of flow -- so the surface would fall to nothing for a frame and spring
-        // back, which is what read as a bounce at the end of the movement.
+        clearTimeout(timer);
+        // Layout first, animation second: cancelling drops the filled height in
+        // the same tick, and doing it the other way round let the surface fall
+        // to its natural size for a frame and spring back.
         finish();
-        for (const a of running) a.cancel();
+        growth.cancel();
       };
+      // An animation in a document the browser has stopped painting never
+      // reports finished, and the surface would keep `overflow: hidden` for
+      // good. The clock is the backstop, not the timing.
+      const timer = setTimeout(() => { if (settle === done) done(); }, DURATION + 250);
       settle = done;
-      Promise.all(running.map((a) => a.finished))
-        .then(() => { if (settle === done) done(); })
-        .catch(() => {});                        // cancelled by the next swap
+      growth.finished.then(() => { if (settle === done) done(); }).catch(() => {});
     }
 
     const optionsFor = (item) =>
@@ -204,7 +197,7 @@
         list.hidden = false;
         return;
       }
-      swap(submenu, list, 'back');
+      swap(submenu, list);
     }
 
     function openSubmenu(entry) {
@@ -257,7 +250,7 @@
 
       submenu.appendChild(body);
       submenu.scrollTop = 0;
-      swap(list, submenu, 'forward');
+      swap(list, submenu);
       back.focus();
     }
 

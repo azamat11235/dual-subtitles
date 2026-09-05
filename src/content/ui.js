@@ -80,22 +80,21 @@
     p.className = 'ds-panel';
     p.setAttribute('aria-hidden', 'true');
 
-    const title = document.createElement('div');
-    title.className = 'ds-panel__title';
-    title.append('Dual subtitles');
-
     const master = document.createElement('label');
     master.className = 'ds-switch';
     const masterInput = document.createElement('input');
     masterInput.type = 'checkbox';
     master.appendChild(masterInput);
-    const masterText = document.createTextNode('Enabled');
+    // The panel's name lives on this row rather than in a heading of its own:
+    // the player's menu has no heading either, and the row already says what
+    // the switch turns on.
+    const masterText = document.createTextNode('Dual subtitles');
     master.appendChild(masterText);
     // The binding is asked for rather than assumed: it differs per platform and
     // the user can change or clear it in the browser's settings.
     DS.getShortcut().then((shortcut) => {
       const label = DS.shortcutLabel(shortcut);
-      if (label) masterText.textContent = `Enabled (${label})`;
+      if (label) masterText.textContent = `Dual subtitles (${label})`;
     });
     masterInput.addEventListener('change', () => DS.setSettings({ enabled: masterInput.checked }));
     const masterRow = document.createElement('div');
@@ -114,7 +113,7 @@
     form = DS.buildSettingsForm(body, { getLangOptions });
     // Inside the list view rather than above it, so the whole panel slides away
     // together when a submenu opens.
-    form.listView.prepend(title, masterRow, status);
+    form.listView.prepend(masterRow, status);
 
     // Clicks inside the panel must not reach the player (or it would pause/seek).
     for (const ev of ['click', 'dblclick', 'mousedown', 'keydown', 'wheel']) {

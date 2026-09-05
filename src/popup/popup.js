@@ -11,7 +11,7 @@
   // Same label as the panel inside the player, down to the actual binding.
   DS.getShortcut().then((shortcut) => {
     const label = DS.shortcutLabel(shortcut);
-    if (label) document.getElementById('enabledLabel').textContent = `Enabled (${label})`;
+    if (label) document.getElementById('enabledLabel').textContent = `Dual subtitles (${label})`;
   });
 
   // The popup has no access to a particular video's track list -- show the
@@ -34,7 +34,7 @@
   // submenu opens, exactly as the in-player panel does.
   const masterIcon = DS.rowIcon('enabled');
   if (masterIcon) document.getElementById('enabledRow').prepend(masterIcon);
-  form.listView.prepend(...document.querySelectorAll('body > .ds-panel__title, body > .ds-row, body > .hint'));
+  form.listView.prepend(...document.querySelectorAll('body > .ds-row, body > .hint'));
   form.listView.append(document.querySelector('body > .foot'));
   await form.refresh();
 

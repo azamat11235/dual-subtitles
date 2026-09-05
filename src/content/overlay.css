@@ -196,6 +196,10 @@
   font-weight: 500;
   line-height: 15px;
   letter-spacing: normal;
+  /* The player's tooltip text carries this, solid black rather than the softer
+     one on the panel. Without it the same size and weight still read as a
+     lighter, sharper typeface than its neighbours'. */
+  text-shadow: rgb(0, 0, 0) 0 0 2px;
   white-space: nowrap;
 
   opacity: 0;
@@ -205,6 +209,14 @@
 
 .ds-btn:hover::after,
 .ds-btn:focus-visible::after { opacity: 1; }
+
+/* No tooltip while a menu is open. The player's own buttons stay quiet then --
+   its tooltips are drawn from script, which simply does not offer one, so there
+   is no rule to inherit and ours has to be told. */
+.ytp-settings-shown .ds-btn:hover::after,
+.ytp-settings-shown .ds-btn:focus-visible::after,
+.ds-holding-controls .ds-btn:hover::after,
+.ds-holding-controls .ds-btn:focus-visible::after { opacity: 0; }
 
 /* .ytp-big-mode .ytp-tooltip { line-height: 22px }, matched. */
 .ytp-big-mode .ds-btn::after { line-height: 22px; }
