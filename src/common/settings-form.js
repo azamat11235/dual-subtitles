@@ -170,8 +170,12 @@
       ];
 
       const done = () => {
-        for (const a of running) a.cancel();
+        // Layout first, animations second. Cancelling drops the filled values in
+        // the same tick, and until the class comes off both views are still out
+        // of flow -- so the surface would fall to nothing for a frame and spring
+        // back, which is what read as a bounce at the end of the movement.
         finish();
+        for (const a of running) a.cancel();
       };
       settle = done;
       Promise.all(running.map((a) => a.finished))
