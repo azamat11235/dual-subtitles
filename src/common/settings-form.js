@@ -119,60 +119,64 @@
     // form itself in the popup, where the window follows its content.
     const shell = root.closest('.ds-panel') || root;
 
+    const DURATION = 250;                       // .ytp-popup-animating .ytp-panel
+    const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+    const stillMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
     let settle = null;
+    /**
+     * Slides one view out while the other comes in, and takes the surface's
+     * height with it -- the way the player moves between its own panels.
+     *
+     * Driven by animations rather than transitions: a transition only starts
+     * once its starting value has been through a style resolution, so the two
+     * sides could begin a frame apart -- the arriving view snapping into place
+     * while the leaving one was still on its way out, the two crossing over each
+     * other. Three animations started together cannot drift apart.
+     */
     function swap(from, to, direction) {
       const back = direction === 'back';
-      // A swap started mid-flight leaves the previous one half-applied -- an
-      // inline height on the surface and a transform on a view that is about to
-      // be reused. Finish it properly first rather than just dropping its timer.
+      // A swap started mid-flight leaves the previous one half-applied. Finish
+      // it properly first rather than just dropping it.
       settle?.();
 
-      // Both heights are read with the views still in normal flow, so a ceiling
-      // on the panel has already been applied to them. Measuring the incoming
-      // view after it was taken out of flow gave nothing to measure against and
-      // collapsed the panel to nothing.
+      // Both heights are read with the views in normal flow, so a ceiling on the
+      // panel has already been applied to them.
       const startHeight = shell.offsetHeight;
-      const wasHidden = to.hidden;
       from.hidden = true;
       to.hidden = false;
       const endHeight = shell.offsetHeight;
       from.hidden = false;
-      to.hidden = wasHidden;
 
-      to.hidden = false;
-      root.classList.add('ds-form--animating');
-      to.style.transform = `translateX(${back ? '-100%' : '100%'})`;
-      shell.classList.add('ds-shell--animating');
-      shell.style.overflow = 'hidden';
-      shell.style.height = `${startHeight}px`;
-
-      const done = () => {
-        shell.removeEventListener('transitionend', onEnd);
-        clearTimeout(timer);
+      const finish = () => {
         settle = null;
         root.classList.remove('ds-form--animating');
-        shell.classList.remove('ds-shell--animating');
         shell.style.overflow = '';
-        shell.style.height = '';
         from.hidden = true;
-        from.style.transform = '';
-        to.style.transform = '';
       };
-      const onEnd = (e) => { if (e.target === shell && e.propertyName === 'height') done(); };
-      shell.addEventListener('transitionend', onEnd);
-      // The end of the transition finishes this, not a stopwatch racing it; the
-      // timer is only for a transition that never starts at all.
-      const timer = setTimeout(done, 600);
-      settle = done;
 
-      // Two frames: the first carries the starting height and offset into the
-      // style system, the second is what the transition runs from.
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (settle !== done) return;          // superseded before it began
-        shell.style.height = `${endHeight}px`;
-        to.style.transform = 'translateX(0)';
-        from.style.transform = `translateX(${back ? '100%' : '-100%'})`;
-      }));
+      if (stillMotion() || !shell.animate) { finish(); return; }
+
+      root.classList.add('ds-form--animating');
+      shell.style.overflow = 'hidden';
+
+      const options = { duration: DURATION, easing: EASING, fill: 'both' };
+      const running = [
+        shell.animate([{ height: `${startHeight}px` }, { height: `${endHeight}px` }], options),
+        from.animate([{ transform: 'translateX(0)' },
+          { transform: `translateX(${back ? '100%' : '-100%'})` }], options),
+        to.animate([{ transform: `translateX(${back ? '-100%' : '100%'})` },
+          { transform: 'translateX(0)' }], options)
+      ];
+
+      const done = () => {
+        for (const a of running) a.cancel();
+        finish();
+      };
+      settle = done;
+      Promise.all(running.map((a) => a.finished))
+        .then(() => { if (settle === done) done(); })
+        .catch(() => {});                        // cancelled by the next swap
     }
 
     const optionsFor = (item) =>

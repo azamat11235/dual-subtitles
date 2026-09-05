@@ -147,14 +147,13 @@
    exactly as tall as whichever view is showing. */
 .ds-form { position: relative; }
 
-.ds-shell--animating { transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-
+/* Laid over each other only while a swap runs; the movement itself is driven
+   from script, so that both sides start on the same tick. */
 .ds-form--animating .ds-view {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ds-row input[type="text"] {
