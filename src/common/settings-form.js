@@ -121,25 +121,23 @@
 
     const DURATION = 300;                       // .ytp-popup-animating declares 250
     const EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
-    const LEAVE = 120;                          // the old view goes first,
-    const ARRIVE = DURATION - LEAVE;            // the new one follows it
-    const TRAVEL = 16;                          // px -- a hint of direction, not a sweep
     const stillMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     let settle = null;
     /**
-     * Moves between the list and a submenu.
+     * Moves between the list and a submenu, the way the player moves between its
+     * own panels -- watched by logging what it does to them mid-swap.
      *
-     * The surface reshapes, the way the player's menu does -- its panels sit
-     * absolutely inside a box that clips them, and what animates is the box's
-     * own width and height. Dragging a whole panel's width across the opening,
-     * which is what this did before, is a far brisker movement.
+     * It pins the menu to its current size, parks the arriving panel a full
+     * width away and invisible (`.ytp-panel-animate-forward` is
+     * `translateX(100%)` with `opacity: 0`), then in the next frame hands both
+     * panels their end state and lets one 0.25s transition carry the lot.
+     * Everything happens at once: the leaving panel slides out *and* fades, the
+     * arriving one slides in *and* appears, and the box resizes around them.
      *
-     * The reshape alone is not enough, though: where the panel is already at its
-     * ceiling both views are taller than it, the height has nowhere to go, and
-     * the change would land with no movement at all. So the views also hand over
-     * -- one out, then the other in, rather than both at once, which would have
-     * them washing through each other in the middle.
+     * The fading is what makes it read as gentle. Sliding alone is a hard sweep
+     * of solid text; taking turns instead leaves a gap in the middle where the
+     * panel looks empty.
      */
     function swap(from, to, direction) {
       const back = direction === 'back';
@@ -165,22 +163,23 @@
       root.classList.add('ds-form--animating');
       shell.style.overflow = 'hidden';
 
+      const options = { duration: DURATION, easing: EASING, fill: 'both' };
       const running = [
-        from.animate(
-          [{ opacity: 1, transform: 'translateX(0)' },
-            { opacity: 0, transform: `translateX(${back ? TRAVEL : -TRAVEL}px)` }],
-          { duration: LEAVE, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'both' }
-        ),
-        to.animate(
-          [{ opacity: 0, transform: `translateX(${back ? -TRAVEL : TRAVEL}px)` },
-            { opacity: 1, transform: 'translateX(0)' }],
-          { duration: ARRIVE, delay: LEAVE, easing: 'cubic-bezier(0, 0, 0.2, 1)', fill: 'both' }
-        )
+        from.animate([
+          { opacity: 1, transform: 'translateX(0)' },
+          { opacity: 0, transform: `translateX(${back ? '100%' : '-100%'})` }
+        ], options),
+        to.animate([
+          { opacity: 0, transform: `translateX(${back ? '-100%' : '100%'})` },
+          { opacity: 1, transform: 'translateX(0)' }
+        ], options)
       ];
+      // Only when there is somewhere to go: at the panel's ceiling both views
+      // are taller than it and the height stays put, which is fine -- the views
+      // still carry the movement.
       if (startHeight !== endHeight) {
         running.push(shell.animate(
-          [{ height: `${startHeight}px` }, { height: `${endHeight}px` }],
-          { duration: DURATION, easing: EASING, fill: 'both' }
+          [{ height: `${startHeight}px` }, { height: `${endHeight}px` }], options
         ));
       }
 
