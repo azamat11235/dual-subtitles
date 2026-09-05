@@ -306,6 +306,10 @@
 /* While our panel is open the control bar stays up with it, the way the player
    keeps its own menus company. The class above does the work; this is the
    belt-and-braces for a layout that hides the bar by opacity alone. */
+/* While our panel is open the player's own buttons stay quiet too, exactly as
+   they do while one of its menus is up. */
+.ds-holding-controls .ytp-tooltip { display: none !important; }
+
 .ds-holding-controls .ytp-chrome-bottom {
   opacity: 1 !important;
   pointer-events: auto !important;

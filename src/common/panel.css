@@ -25,8 +25,14 @@
   font-size: 14px;
 }
 
-/* .ytp-menuitem:not([aria-disabled="true"]):hover, matched. */
-.ds-row:hover { background: rgba(255, 255, 255, 0.1); }
+/* .ytp-menuitem:not([aria-disabled="true"]):hover, matched -- with one addition.
+   The player's own rule carries no radius, but its highlight is plainly rounded
+   on screen, and three of its stylesheets are cross-origin and unreadable. The
+   corner follows what it looks like rather than what can be read of it. */
+.ds-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
 
 /* The glyph column, sized as the player's: a 24px icon, then 24px of space made
    of this margin plus the row's gap, so labels start 64px in from the edge
@@ -131,7 +137,7 @@
   background-size: 18px 18px;
 }
 
-.ds-option:hover { background-color: rgba(255, 255, 255, 0.1); }
+.ds-option:hover { background-color: rgba(255, 255, 255, 0.1); border-radius: 8px; }
 .ds-option:focus-visible { outline: 1px solid rgba(255, 255, 255, 0.5); outline-offset: -1px; }
 .ds-option[aria-checked="true"] { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"); }
 
@@ -143,6 +149,15 @@
    The views are only taken out of flow while that runs, so at rest the panel is
    exactly as tall as whichever view is showing. */
 .ds-form { position: relative; }
+
+/* Stacked only while a swap runs, so the outgoing view can still be seen on its
+   way out. The movement itself comes from script, so both sides keep one clock. */
+.ds-form--animating .ds-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
 
 
 .ds-row input[type="text"] {
