@@ -216,7 +216,7 @@ player.
 npm test
 ```
 
-73 tests with no dependencies: `json3` parsing against fixtures shaped like a
+72 tests with no dependencies: `json3` parsing against fixtures shaped like a
 real response; sentence merging; active-cue lookup (checked against a full
 scan); alignment of the second language onto the first timeline, including the
 case where the translated track is missing a cue; track selection, built on the
