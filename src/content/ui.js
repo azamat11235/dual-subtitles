@@ -78,7 +78,7 @@
   function buildPanel(player) {
     const p = document.createElement('div');
     p.className = 'ds-panel';
-    p.hidden = true;
+    p.setAttribute('aria-hidden', 'true');
 
     const title = document.createElement('div');
     title.className = 'ds-panel__title';
@@ -185,10 +185,14 @@
     watch();
   }
 
+  /** Open or closed is a class now, so the panel can fade instead of blinking. */
+  const panelOpen = () => !!panel?.classList.contains('ds-panel--open');
+
   function togglePanel(show) {
     if (!panel) return;
-    const next = show ?? panel.hidden;
-    panel.hidden = !next;
+    const next = show ?? !panelOpen();
+    panel.classList.toggle('ds-panel--open', next);
+    panel.setAttribute('aria-hidden', String(!next));
     button?.setAttribute('aria-expanded', String(next));
     holdControls(next);
     if (next) {
@@ -203,7 +207,7 @@
   }
 
   function onDocClick(e) {
-    if (!panel || panel.hidden) return;
+    if (!panel || !panelOpen()) return;
     if (panel.contains(e.target) || button?.contains(e.target)) return;
     togglePanel(false);
   }
@@ -339,14 +343,11 @@
       const key = state.videoId + '|' + (state.info?.tracks.map(DS.trackKey).join(',') || '');
       if (key !== lastTracksKey) {
         lastTracksKey = key;
-        if (panel && !panel.hidden) form?.refresh();
+        if (panelOpen()) form?.refresh();
       }
     });
-    DS.onSettingsChange(() => {
-      syncButton();
-      // The subtitles may have just been dragged, which is what makes the
-      // "put it back" button appear.
-      if (panel && !panel.hidden) form?.syncVisibility();
-    });
+    // The form keeps its own rows in step with storage; this only has to follow
+    // the button's own state.
+    DS.onSettingsChange(() => syncButton());
   };
 })();

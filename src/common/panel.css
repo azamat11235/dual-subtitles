@@ -29,21 +29,26 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 48px;
-  margin: 0;
-  padding: 0 16px;
+  /* .ytp-panel-menu keeps 8px around its items, so a row's hover mark stops
+     short of the panel edge; the text still lands 16px in. */
+  margin: 0 8px;
+  padding: 0 8px;
   font-size: 14px;
 }
 
 /* .ytp-menuitem:not([aria-disabled="true"]):hover, matched. */
 .ds-row:hover { background: rgba(255, 255, 255, 0.1); }
 
-/* The glyph column, sized as the player's: a 24px icon with 24px after it, so
-   the labels start 64px in from the edge exactly as its own menu does. */
+/* The glyph column, sized as the player's: a 24px icon, then 24px of space made
+   of this margin plus the row's gap, so labels start 64px in from the edge
+   exactly as its own menu does. */
 .ds-icon {
   flex: none;
   width: 24px;
   height: 24px;
-  margin-right: 24px;
+  /* 12px here plus the row's own 12px gap: the label lands 64px from the panel
+     edge, where the player puts its own. */
+  margin-right: 12px;
   color: #eee;
 }
 
@@ -120,10 +125,13 @@
   color: #eee;
 }
 
+.ds-submenu__list { padding: 8px 0; }
+
 .ds-option {
   display: flex;
   align-items: center;
   min-height: 48px;
+  margin: 0 8px;
   padding: 0 20px 0 35px;
   font-size: 14px;
   color: #eee;
